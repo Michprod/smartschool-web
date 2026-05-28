@@ -1,0 +1,1 @@
+function d(r){const a=r.data;if(Array.isArray(a))return a;if(a&&typeof a=="object"){const t=a;if(Array.isArray(t.data))return t.data;if(t.data&&typeof t.data=="object"&&Array.isArray(t.data.data))return t.data.data}return[]}function e(r){const a=r.data;return a?.data&&typeof a.data=="object"&&!Array.isArray(a.data)?a.data:r.data}export{d as a,e};

@@ -1,0 +1,35 @@
+.class-management .page-hero {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.class-management .filters-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.class-management .filters-bar input,
+.class-management .filters-bar select {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 8px;
+  min-width: 180px;
+}
+
+.class-full-page .form-panel {
+  background: #fff;
+  border-radius: 12px;
+  padding: 1.5rem;
+  border: 1px solid var(--border-color, #e2e8f0);
+}
+
+.class-management .empty-msg {
+  text-align: center;
+  padding: 2rem;
+  color: var(--text-muted, #64748b);
+}
