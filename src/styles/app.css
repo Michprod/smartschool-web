@@ -65,8 +65,34 @@ h4 {
 .loading-container {
   min-height: 40vh;
   display: grid;
-  place-items: center;
+  gap: 12px;
+  padding: 16px;
   color: var(--text-muted);
+}
+
+.loading-screen--full {
+  min-height: 100vh;
+  width: 100%;
+  background: var(--bg);
+  padding: 20px;
+}
+
+.page-content-fallback {
+  display: grid;
+  gap: 12px;
+  width: 100%;
+  min-height: 50vh;
+  animation: page-fade-in 0.15s ease;
+}
+
+@keyframes page-fade-in {
+  from {
+    opacity: 0.6;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
 
 .loading-spinner {

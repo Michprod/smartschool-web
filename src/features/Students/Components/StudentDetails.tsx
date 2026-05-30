@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import api from '@/core/api/client';
 import { extractItem, extractList } from '@/core/api/extractData';
 import Skeleton from '@/core/Components/Skeleton';

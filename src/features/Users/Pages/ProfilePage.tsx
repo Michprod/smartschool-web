@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/core/auth/AuthProvider';
 import PhotoUpload from '../Components/PhotoUpload';
 import './ProfilePage.css';

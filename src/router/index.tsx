@@ -1,10 +1,9 @@
-﻿import React, { Suspense, lazy } from 'react';
+import React, { lazy } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import ProtectedRoute from './ProtectedRoute';
 import GuestRoute from './GuestRoute';
 import PermissionRoute from './PermissionRoute';
 import LoginPage from '@/features/auth/LoginPage';
-import Skeleton from '@/core/Components/Skeleton';
 
 const DashboardHome = lazy(() => import('@/features/Dashboard/Pages/DashboardHome'));
 const StudentManagement = lazy(() => import('@/features/Students/Pages/StudentManagement'));
@@ -23,17 +22,7 @@ const ProfilePage = lazy(() => import('@/features/Users/Pages/ProfilePage'));
 
 export default function AppRouter() {
   return (
-    <Suspense
-      fallback={
-        <div className="loading-screen" style={{ width: '100%', padding: 16, gap: 12 }}>
-          <Skeleton className="skel-h-10" />
-          <Skeleton className="skel-h-24" />
-          <Skeleton className="skel-h-24" />
-          <Skeleton className="skel-h-24" />
-        </div>
-      }
-    >
-      <Routes>
+    <Routes>
         <Route element={<GuestRoute />}>
           <Route path="/login" element={<LoginPage />} />
         </Route>
@@ -141,8 +130,7 @@ export default function AppRouter() {
         </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </Suspense>
+    </Routes>
   );
 }
 

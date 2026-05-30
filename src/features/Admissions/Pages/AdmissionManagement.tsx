@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import type { Application } from '../types';
 import ApplicationForm from '../Components/ApplicationForm';
 import type { ApplicationFormData } from '../Components/ApplicationForm';

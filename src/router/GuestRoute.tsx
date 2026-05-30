@@ -1,4 +1,4 @@
-﻿import { Navigate, Outlet } from 'react-router-dom';
+import { Navigate, Outlet } from 'react-router-dom';
 import { useAuth } from '../core/auth/AuthProvider';
 import Skeleton from '@/core/Components/Skeleton';
 

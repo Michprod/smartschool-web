@@ -1,4 +1,4 @@
-﻿import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState } from 'react';
 import api, { initCsrf } from '../api/client';
 import type { AuthUser } from './types';
 

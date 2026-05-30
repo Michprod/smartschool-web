@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import type { SchoolEvent } from '../types';
 import Pagination from '@/core/Components/Pagination';
 import './EventsPage.css';

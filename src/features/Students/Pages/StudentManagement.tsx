@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import api from '@/core/api/client';
 import { useNavigate } from 'react-router-dom';
 import type { Student } from '../types';

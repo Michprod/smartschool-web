@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import Pagination from '@/core/Components/Pagination';
 import './ReportsPage.css';
 import api from '@/core/api/client';

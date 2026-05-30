@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import type { FormEvent } from 'react';
 import './PaymentForm.css';
 

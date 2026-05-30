@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import type { FormEvent } from 'react';
 import LocationSelect, { type LocationValue } from '@/core/Components/LocationSelect';
 import PhotoUpload from './PhotoUpload';

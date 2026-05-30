@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import './ProfileManagement.css';
 import Pagination from '@/core/Components/Pagination';
 import api from '@/core/api/client';

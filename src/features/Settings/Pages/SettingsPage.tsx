@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import ProfileManagement from '../Components/ProfileManagement';
 import './SettingsPage.css';
 import api from '@/core/api/client';

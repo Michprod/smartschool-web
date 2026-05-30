@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import { useAuth } from '@/core/auth/AuthProvider';
 import { hasPermission } from '@/core/auth/types';
 

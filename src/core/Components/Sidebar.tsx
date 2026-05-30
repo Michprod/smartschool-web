@@ -1,7 +1,8 @@
-﻿import React from 'react';
+import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/core/auth/AuthProvider';
 import { hasPermission } from '@/core/auth/types';
+import { preloadRoute } from '@/router/routePreloads';
 import './Sidebar.css';
 
 interface SidebarProps {
@@ -68,6 +69,8 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, toggleSidebar }) => {
                   activePage === item.id || (item.id === 'dashboard' && location.pathname === '/') ? 'active' : ''
                 }`}
                 title={!isOpen ? item.label : undefined}
+                onMouseEnter={() => preloadRoute(itemPath(item.id))}
+                onFocus={() => preloadRoute(itemPath(item.id))}
                 onClick={() => {
                   if (window.innerWidth <= 1080) toggleSidebar();
                 }}

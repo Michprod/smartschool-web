@@ -1,4 +1,4 @@
-﻿import React, { useState, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import type { ChangeEvent } from 'react';
 import './PhotoUpload.css';
 
