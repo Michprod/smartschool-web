@@ -6,7 +6,9 @@ export interface AuthUser {
   role: string;
   phone?: string;
   avatar?: string;
+  avatar_url?: string;
   department?: string;
+  job_title?: string;
   is_active: boolean;
   all_permissions: string[];
 }
