@@ -1,0 +1,29 @@
+.config-hub { max-width: 1100px; margin: 0 auto; padding: 24px; }
+.config-badge-warn { background: #fff3cd; color: #856404; padding: 8px 16px; border-radius: 8px; font-weight: 600; }
+.config-badge-ok { background: #d4edda; color: #155724; padding: 8px 16px; border-radius: 8px; font-weight: 600; }
+.config-checklist { background: white; border-radius: 12px; padding: 24px; margin-bottom: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+.config-checklist ul { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 8px; }
+.config-checklist li { padding: 8px 12px; border-radius: 8px; font-size: 14px; }
+.config-checklist li.ok { background: #f0fff4; color: #155724; }
+.config-checklist li.ko { background: #fff8f0; color: #856404; }
+.config-links-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; }
+.config-links-grid a { text-decoration: none; color: inherit; }
+.config-link-card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); transition: transform 0.2s; border: 2px solid transparent; }
+.config-link-card:hover { transform: translateY(-2px); border-color: #667eea; }
+.config-link-card.pending { border-color: #ffc107; }
+.config-link-card span.material-symbols-outlined { font-size: 32px; color: #667eea; }
+.config-link-card h3 { margin: 12px 0 4px; font-size: 16px; }
+.config-link-card small { color: #95a5a6; }
+.config-link-card small.ok-text { color: #28a745; }
+.config-page { max-width: 900px; margin: 0 auto; padding: 24px; }
+.config-page header { margin-bottom: 24px; }
+.config-page header a { color: #667eea; text-decoration: none; font-size: 14px; }
+.config-panel { background: white; border-radius: 12px; padding: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); margin-bottom: 20px; }
+.config-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.config-form-grid .full { grid-column: 1 / -1; }
+.config-field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+.config-field label { font-weight: 600; font-size: 13px; }
+.config-field input, .config-field select { padding: 10px 12px; border: 1px solid #ddd; border-radius: 8px; }
+.config-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.config-table th, .config-table td { padding: 10px; border-bottom: 1px solid #eee; text-align: left; }
+.config-table th { background: #f8f9fa; }

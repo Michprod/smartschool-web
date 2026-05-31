@@ -24,7 +24,7 @@ const menuItems: MenuItem[] = [
   { id: 'classes', label: 'Classes', icon: 'class', permission: 'classes:read' },
   { id: 'grades', label: 'Notes', icon: 'school', permission: 'grades:read' },
   { id: 'conduct', label: 'Conduite', icon: 'psychology', permission: 'conduct:write' },
-  { id: 'teachers', label: 'Enseignants', icon: 'badge', permission: 'teachers:read' },
+  { id: 'personnel', label: 'Personnel', icon: 'groups', permission: 'personnel:read' },
   { id: 'finance', label: 'Finance', icon: 'payments', permission: 'finance:read' },
   { id: 'admissions', label: 'Admissions', icon: 'person_add', permission: 'admissions:read' },
   { id: 'events', label: 'Calendrier', icon: 'calendar_today', permission: 'events:read' },
@@ -32,6 +32,7 @@ const menuItems: MenuItem[] = [
   { id: 'discipline', label: 'Discipline', icon: 'gavel', permission: 'discipline:read' },
   { id: 'inventory', label: 'Inventaire', icon: 'inventory_2', permission: 'inventory:read' },
   { id: 'users', label: 'Utilisateurs', icon: 'manage_accounts', permission: 'users:read' },
+  { id: 'configuration', label: 'Configuration', icon: 'tune', permission: 'settings:read' },
   { id: 'reports', label: 'Rapports', icon: 'assessment', permission: 'reports:read' },
   { id: 'profile', label: 'Mon profil', icon: 'person' },
   { id: 'settings', label: 'Paramètres', icon: 'settings', permission: 'settings:read' },
@@ -46,7 +47,11 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, toggleSidebar }) => {
     (item) => !item.permission || hasPermission(user?.all_permissions, item.permission)
   );
 
-  const itemPath = (id: string) => (id === 'dashboard' ? '/' : `/${id}`);
+  const itemPath = (id: string) => {
+    if (id === 'dashboard') return '/';
+    if (id === 'configuration') return '/configuration';
+    return `/${id}`;
+  };
 
   return (
     <aside className={`sidebar ${isOpen ? 'open' : 'closed'}`}>
@@ -69,7 +74,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, toggleSidebar }) => {
               <Link
                 to={itemPath(item.id)}
                 className={`nav-link ${
-                  activePage === item.id || (item.id === 'dashboard' && location.pathname === '/') ? 'active' : ''
+                  activePage === item.id || (item.id === 'dashboard' && location.pathname === '/') || (item.id === 'configuration' && location.pathname.startsWith('/configuration')) ? 'active' : ''
                 }`}
                 title={!isOpen ? item.label : undefined}
                 onMouseEnter={() => preloadRoute(itemPath(item.id))}

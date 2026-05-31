@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import Pagination from '@/core/Components/Pagination';
 import './UserManagement.css';
 import api from '@/core/api/client';
 import { extractList } from '@/core/api/extractData';
 import PhotoUpload from '../Components/PhotoUpload';
+
+const ACCOUNT_ONLY_ROLES = ['admin', 'parent', 'inventory_manager'];
 
 export interface User {
   id: string;
@@ -14,14 +17,10 @@ export interface User {
   role: 'admin' | 'director' | 'teacher' | 'accountant' | 'secretary' | 'parent' | 'student';
   status: 'active' | 'inactive' | 'suspended';
   photo?: string;
-  department?: string;
   permissions: string[];
   createdAt: Date;
   lastLogin?: Date;
-  hasProfessionalProfile?: boolean;
-  workloadHours?: number | null;
-  jobGrade?: string;
-  jobTitle?: string;
+  personnelId?: number | null;
 }
 
 const UserManagement: React.FC = () => {
@@ -47,17 +46,11 @@ const UserManagement: React.FC = () => {
     lastName: '',
     email: '',
     phone: '',
-    role: 'teacher' as User['role'],
+    role: 'admin' as User['role'],
     profileId: '',
-    department: '',
     status: 'active' as User['status'],
     photo: '',
     password: ''
-    ,
-    hasProfessionalProfile: false,
-    workloadHours: '',
-    jobGrade: '',
-    jobTitle: '',
   });
 
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
@@ -88,14 +81,10 @@ const UserManagement: React.FC = () => {
           role: u.role as User['role'],
           status: (u.is_active ? 'active' : 'inactive') as User['status'],
           photo: u.avatar ? (u.avatar.startsWith('http') ? u.avatar : `/storage/${u.avatar}`) : undefined,
-          department: u.department,
           permissions: Array.isArray(u.permissions) ? u.permissions : [],
           createdAt: new Date(u.created_at),
           lastLogin: u.last_login ? new Date(u.last_login) : undefined,
-          hasProfessionalProfile: Boolean(u.has_professional_profile),
-          workloadHours: u.workload_hours ?? null,
-          jobGrade: u.job_grade || '',
-          jobTitle: u.job_title || '',
+          personnelId: u.personnel_id ?? u.personnel_summary?.id ?? null,
         }));
 
         setUsers(mappedUsers);
@@ -154,17 +143,11 @@ const UserManagement: React.FC = () => {
       lastName: '',
       email: '',
       phone: '',
-      role: 'teacher',
+      role: 'admin',
       profileId: '',
-      department: '',
       status: 'active',
       photo: '',
       password: ''
-      ,
-      hasProfessionalProfile: false,
-      workloadHours: '',
-      jobGrade: '',
-      jobTitle: '',
     });
     setPhotoFile(null);
     setFormErrors({});
@@ -179,16 +162,10 @@ const UserManagement: React.FC = () => {
       email: user.email,
       phone: user.phone,
       role: user.role,
-      profileId: user.role, // Map role to profileId for now
-      department: user.department || '',
+      profileId: user.role,
       status: user.status,
       photo: user.photo || '',
-      password: ''
-      ,
-      hasProfessionalProfile: Boolean(user.hasProfessionalProfile),
-      workloadHours: user.workloadHours != null ? String(user.workloadHours) : '',
-      jobGrade: user.jobGrade || '',
-      jobTitle: user.jobTitle || '',
+      password: '',
     });
     setShowUserForm(true);
   };
@@ -204,13 +181,8 @@ const UserManagement: React.FC = () => {
         email: formData.email,
         phone: formData.phone,
         role: formData.role,
-        department: formData.department,
         is_active: formData.status === 'active',
         avatar: formData.photo,
-        has_professional_profile: formData.hasProfessionalProfile,
-        workload_hours: formData.hasProfessionalProfile ? Number(formData.workloadHours || 0) : null,
-        job_grade: formData.hasProfessionalProfile ? formData.jobGrade || null : null,
-        job_title: formData.hasProfessionalProfile ? formData.jobTitle || null : null,
       };
 
       if (!editingUser) {
@@ -233,18 +205,12 @@ const UserManagement: React.FC = () => {
                 email: formData.email,
                 phone: formData.phone,
                 role: formData.role,
-                department: formData.department,
                 status: formData.status,
                 photo: updatedUser.avatar ? (updatedUser.avatar.startsWith('http') ? updatedUser.avatar : `/storage/${updatedUser.avatar}`) : formData.photo,
-                hasProfessionalProfile: formData.hasProfessionalProfile,
-                workloadHours: formData.hasProfessionalProfile ? Number(formData.workloadHours || 0) : null,
-                jobGrade: formData.jobGrade,
-                jobTitle: formData.jobTitle,
               }
             : u
         ));
       } else {
-        // Add new user
         const response = await api.post('/api/users', payload);
         const data = response.data;
         const newUser: User = {
@@ -254,15 +220,10 @@ const UserManagement: React.FC = () => {
           email: formData.email,
           phone: formData.phone,
           role: formData.role,
-          department: formData.department,
           status: formData.status,
           photo: data.avatar ? (data.avatar.startsWith('http') ? data.avatar : `/storage/${data.avatar}`) : formData.photo,
           permissions: data.permissions || [], 
           createdAt: new Date(),
-          hasProfessionalProfile: formData.hasProfessionalProfile,
-          workloadHours: formData.hasProfessionalProfile ? Number(formData.workloadHours || 0) : null,
-          jobGrade: formData.jobGrade,
-          jobTitle: formData.jobTitle,
         };
         setUsers(prev => [...prev, newUser]);
       }
@@ -331,7 +292,8 @@ const UserManagement: React.FC = () => {
         <div>
           <h1>Gestion des Utilisateurs</h1>
           <p className="page-subtitle">
-            {users.length} utilisateur{users.length > 1 ? 's' : ''} • Gestion des rôles et permissions
+            Comptes d&apos;accès (admin, parent). Pour le staff, utilisez le module{' '}
+            <Link to="/personnel">Personnel</Link>.
           </p>
         </div>
         <button className="btn btn-primary" onClick={handleAddUser}>
@@ -372,7 +334,7 @@ const UserManagement: React.FC = () => {
               <th>Utilisateur</th>
               <th>Email / Téléphone</th>
               <th>Rôle</th>
-              <th>Département</th>
+              <th>Personnel lié</th>
               <th>Statut</th>
               <th>Dernière connexion</th>
               <th>Actions</th>
@@ -409,7 +371,11 @@ const UserManagement: React.FC = () => {
                     {availableRoles.find(r => r.slug === user.role)?.name || user.role}
                   </span>
                 </td>
-                <td>{user.department || '—'}</td>
+                <td>
+                  {user.personnelId ? (
+                    <Link to={`/personnel/${user.personnelId}`}>Fiche #{user.personnelId}</Link>
+                  ) : '—'}
+                </td>
                 <td>
                   <span 
                     className="status-badge"
@@ -503,54 +469,6 @@ const UserManagement: React.FC = () => {
                 </div>
               </div>
 
-              <div className="toggle-option">
-                <div>
-                  <strong>Profil professionnel</strong>
-                  <p>Activer la saisie du nombre d'heures, grade et fonction.</p>
-                </div>
-                <label className="toggle-switch">
-                  <input
-                    type="checkbox"
-                    checked={Boolean(formData.hasProfessionalProfile)}
-                    onChange={(e) => setFormData({ ...formData, hasProfessionalProfile: e.target.checked })}
-                  />
-                  <span className="toggle-slider"></span>
-                </label>
-              </div>
-
-              {formData.hasProfessionalProfile && (
-                <div className="form-row">
-                  <div className="form-group">
-                    <label>Nombre d'heures</label>
-                    <input
-                      type="number"
-                      min={0}
-                      max={120}
-                      value={formData.workloadHours}
-                      onChange={(e) => setFormData({ ...formData, workloadHours: e.target.value })}
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>Grade</label>
-                    <input
-                      type="text"
-                      value={formData.jobGrade}
-                      onChange={(e) => setFormData({ ...formData, jobGrade: e.target.value })}
-                      placeholder="Ex: A1, A2"
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>Fonction</label>
-                    <input
-                      type="text"
-                      value={formData.jobTitle}
-                      onChange={(e) => setFormData({ ...formData, jobTitle: e.target.value })}
-                      placeholder="Ex: Professeur principal"
-                    />
-                  </div>
-                </div>
-              )}
-
               <div className="form-row">
                 <div className="form-group">
                   <label>Email <span className="required">*</span></label>
@@ -608,7 +526,7 @@ const UserManagement: React.FC = () => {
                   required
                 >
                   <option value="">Sélectionner un profil...</option>
-                  {availableRoles.map(role => (
+                  {(editingUser ? availableRoles : availableRoles.filter((r) => ACCOUNT_ONLY_ROLES.includes(r.slug))).map(role => (
                     <option key={role.slug} value={role.slug}>
                       {role.name} - {role.description}
                     </option>
@@ -616,21 +534,11 @@ const UserManagement: React.FC = () => {
                 </select>
                 {formErrors.role && <span className="error-text">{formErrors.role}</span>}
                 <small className="help-text">
-                  Les profils définissent les permissions. Gérez-les dans <strong>Paramètres → Profils & Permissions</strong>
+                  Création limitée aux comptes admin/parent. Staff → module Personnel.
                 </small>
               </div>
 
-              <div className="form-row">
-                <div className="form-group">
-                  <label>Département</label>
-                  <input
-                    type="text"
-                    value={formData.department}
-                    onChange={(e) => setFormData({...formData, department: e.target.value})}
-                    placeholder="Ex: Mathématiques, Administration..."
-                  />
-                </div>
-                <div className="form-group">
+              <div className="form-group">
                   <label>Statut <span className="required">*</span></label>
                   <select
                     value={formData.status}
@@ -641,7 +549,6 @@ const UserManagement: React.FC = () => {
                       <option key={value} value={value}>{label}</option>
                     ))}
                   </select>
-                </div>
               </div>
 
               <div className="form-actions">

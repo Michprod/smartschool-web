@@ -19,10 +19,19 @@ const DisciplinePage = lazy(() => import('@/features/Discipline/Pages/Discipline
 const ReportsPage = lazy(() => import('@/features/Reports/Pages/ReportsPage'));
 const SettingsPage = lazy(() => import('@/features/Settings/Pages/SettingsPage'));
 const TeacherDashboardPage = lazy(() => import('@/features/Teachers/Pages/TeacherDashboardPage'));
-const TeacherProfilePage = lazy(() => import('@/features/Teachers/Pages/TeacherProfilePage'));
-const TeacherWorkloadPage = lazy(() => import('@/features/Teachers/Pages/TeacherWorkloadPage'));
 const ConductPage = lazy(() => import('@/features/Conduct/Pages/ConductPage'));
 const ProfilePage = lazy(() => import('@/features/Users/Pages/ProfilePage'));
+const ConfigurationHubPage = lazy(() => import('@/features/Configuration/Pages/ConfigurationHubPage'));
+const SchoolConfigPage = lazy(() => import('@/features/Configuration/Pages/SchoolConfigPage'));
+const FinanceConfigPage = lazy(() => import('@/features/Configuration/Pages/FinanceConfigPage'));
+const SubjectsConfigPage = lazy(() => import('@/features/Configuration/Pages/SubjectsConfigPage'));
+const GeoConfigPage = lazy(() => import('@/features/Configuration/Pages/GeoConfigPage'));
+const PersonnelRefConfigPage = lazy(() => import('@/features/Configuration/Pages/PersonnelRefConfigPage'));
+const RolesConfigPage = lazy(() => import('@/features/Configuration/Pages/RolesConfigPage'));
+const PersonnelListPage = lazy(() => import('@/features/Personnel/Pages/PersonnelListPage'));
+const PersonnelFormPage = lazy(() => import('@/features/Personnel/Pages/PersonnelFormPage'));
+const PersonnelDetailPage = lazy(() => import('@/features/Personnel/Pages/PersonnelDetailPage'));
+const PersonnelWorkloadPage = lazy(() => import('@/features/Personnel/Pages/PersonnelWorkloadPage'));
 
 export default function AppRouter() {
   return (
@@ -107,6 +116,52 @@ export default function AppRouter() {
             }
           />
           <Route
+            path="/personnel"
+            element={
+              <PermissionRoute permission="personnel:read">
+                <PersonnelListPage />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/personnel/new"
+            element={
+              <PermissionRoute permission="personnel:write">
+                <PersonnelFormPage />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/personnel/workload"
+            element={
+              <PermissionRoute permission="personnel:read">
+                <PersonnelWorkloadPage />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/personnel/:id"
+            element={
+              <PermissionRoute permission="personnel:read">
+                <PersonnelDetailPage />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/configuration"
+            element={
+              <PermissionRoute permission="settings:read">
+                <ConfigurationHubPage />
+              </PermissionRoute>
+            }
+          />
+          <Route path="/configuration/ecole" element={<PermissionRoute permission="settings:read"><SchoolConfigPage /></PermissionRoute>} />
+          <Route path="/configuration/finance" element={<PermissionRoute permission="finance:read"><FinanceConfigPage /></PermissionRoute>} />
+          <Route path="/configuration/matieres" element={<PermissionRoute permission="classes:read"><SubjectsConfigPage /></PermissionRoute>} />
+          <Route path="/configuration/geo" element={<PermissionRoute permission="settings:read"><GeoConfigPage /></PermissionRoute>} />
+          <Route path="/configuration/personnel-ref" element={<PermissionRoute permission="settings:read"><PersonnelRefConfigPage /></PermissionRoute>} />
+          <Route path="/configuration/roles" element={<PermissionRoute permission="settings:read"><RolesConfigPage /></PermissionRoute>} />
+          <Route
             path="/discipline"
             element={
               <PermissionRoute permission="discipline:read">
@@ -138,22 +193,8 @@ export default function AppRouter() {
               </PermissionRoute>
             }
           />
-          <Route
-            path="/teachers"
-            element={
-              <PermissionRoute permission="teachers:read">
-                <TeacherProfilePage />
-              </PermissionRoute>
-            }
-          />
-          <Route
-            path="/teachers/workload"
-            element={
-              <PermissionRoute permission="teachers:read">
-                <TeacherWorkloadPage />
-              </PermissionRoute>
-            }
-          />
+          <Route path="/teachers" element={<Navigate to="/personnel?type=teacher" replace />} />
+          <Route path="/teachers/workload" element={<Navigate to="/personnel/workload" replace />} />
           <Route
             path="/conduct"
             element={
@@ -169,4 +210,3 @@ export default function AppRouter() {
     </Routes>
   );
 }
-
