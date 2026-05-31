@@ -18,6 +18,10 @@ const UserManagement = lazy(() => import('@/features/Users/Pages/UserManagement'
 const DisciplinePage = lazy(() => import('@/features/Discipline/Pages/DisciplinePage'));
 const ReportsPage = lazy(() => import('@/features/Reports/Pages/ReportsPage'));
 const SettingsPage = lazy(() => import('@/features/Settings/Pages/SettingsPage'));
+const TeacherDashboardPage = lazy(() => import('@/features/Teachers/Pages/TeacherDashboardPage'));
+const TeacherProfilePage = lazy(() => import('@/features/Teachers/Pages/TeacherProfilePage'));
+const TeacherWorkloadPage = lazy(() => import('@/features/Teachers/Pages/TeacherWorkloadPage'));
+const ConductPage = lazy(() => import('@/features/Conduct/Pages/ConductPage'));
 const ProfilePage = lazy(() => import('@/features/Users/Pages/ProfilePage'));
 
 export default function AppRouter() {
@@ -123,6 +127,38 @@ export default function AppRouter() {
             element={
               <PermissionRoute permission="settings:read">
                 <SettingsPage />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/teacher"
+            element={
+              <PermissionRoute permission="grades:read">
+                <TeacherDashboardPage />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/teachers"
+            element={
+              <PermissionRoute permission="teachers:read">
+                <TeacherProfilePage />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/teachers/workload"
+            element={
+              <PermissionRoute permission="teachers:read">
+                <TeacherWorkloadPage />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/conduct"
+            element={
+              <PermissionRoute permission="conduct:write">
+                <ConductPage />
               </PermissionRoute>
             }
           />

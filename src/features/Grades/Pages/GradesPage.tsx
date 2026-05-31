@@ -5,21 +5,28 @@ import Skeleton from '@/core/Components/Skeleton';
 import './GradesPage.css';
 
 type GradeRow = {
-  id: number;
+  studentId: number;
   initials: string;
   fullName: string;
   matricule: string;
-  interro: number | null;
-  devoir: number | null;
-  examen: number | null;
+  score: number | null;
+  comment: string;
 };
 
 type Option = { id: string; label: string };
-type ClassAssignment = { class: { id: number; name: string }; subjects?: Array<{ subject: { id: number; name: string } }> };
+type ClassAssignment = { class: { id: number; name: string; display_name?: string }; subjects?: Array<{ subject: { id: number; name: string } }> };
 
-const periods = ['1er Trimestre', '2eme Trimestre', '3eme Trimestre'];
+type EvalSession = {
+  id: number;
+  title: string;
+  type: string;
+  term: string;
+  date: string;
+  max_score: number;
+  is_published: boolean;
+};
 
-type PageTab = 'saisie' | 'bulletin';
+type PageTab = 'sessions' | 'saisie' | 'bulletin';
 
 type BulletinRow = {
   student: { id: number; first_name: string; last_name: string; matricule?: string };
@@ -28,23 +35,28 @@ type BulletinRow = {
   class_rank: number;
 };
 
-const getTotal = (row: GradeRow) => (row.interro ?? 0) + (row.devoir ?? 0) + (row.examen ?? 0);
+const currentYear = () => `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`;
 
 const GradesPage: React.FC = () => {
-  const [pageTab, setPageTab] = useState<PageTab>('saisie');
+  const [pageTab, setPageTab] = useState<PageTab>('sessions');
   const [loading, setLoading] = useState(true);
   const [selectedClass, setSelectedClass] = useState('');
   const [selectedSubject, setSelectedSubject] = useState('');
-  const [selectedPeriod, setSelectedPeriod] = useState(periods[0]);
+  const [selectedTerm, setSelectedTerm] = useState('T1');
+  const [academicYear] = useState(currentYear());
   const [rows, setRows] = useState<GradeRow[]>([]);
   const [classOptions, setClassOptions] = useState<Option[]>([]);
   const [subjectOptions, setSubjectOptions] = useState<Option[]>([]);
   const [classAssignments, setClassAssignments] = useState<ClassAssignment[]>([]);
+  const [periodOptions, setPeriodOptions] = useState<Array<{ code: string; label: string }>>([]);
+  const [assessmentTypes, setAssessmentTypes] = useState<Array<{ code: string; label: string }>>([]);
+  const [sessions, setSessions] = useState<EvalSession[]>([]);
+  const [selectedSessionId, setSelectedSessionId] = useState<number | null>(null);
+  const [sessionForm, setSessionForm] = useState({ title: '', type: 'interro', max_score: '10', date: new Date().toISOString().slice(0, 10) });
   const [bulletinRows, setBulletinRows] = useState<BulletinRow[]>([]);
   const [bulletinStats, setBulletinStats] = useState<{ average?: number; count?: number }>({});
   const [bulletinTerm, setBulletinTerm] = useState('T1');
   const [bulletinLoading, setBulletinLoading] = useState(false);
-  const [periodOptions, setPeriodOptions] = useState<Array<{ code: string; label: string }>>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
@@ -52,200 +64,146 @@ const GradesPage: React.FC = () => {
     const loadInitial = async () => {
       try {
         setLoading(true);
-        const [myClassesRes, subjectsRes] = await Promise.all([
-          api.get('/api/grades/my-classes'),
-          api.get('/api/subjects'),
-        ]);
-
-        const assignments: ClassAssignment[] = Array.isArray(myClassesRes.data)
-          ? myClassesRes.data
-          : myClassesRes.data?.data || [];
+        const res = await api.get('/api/grades/my-classes');
+        const assignments: ClassAssignment[] = Array.isArray(res.data) ? res.data : res.data?.data || [];
         const classes = assignments.map((item) => ({
           id: String(item.class.id),
-          label: item.class.name,
+          label: item.class.display_name || item.class.name,
         }));
-
-        const fallbackSubjects: Option[] = (Array.isArray(subjectsRes.data) ? subjectsRes.data : subjectsRes.data?.data || []).map(
-          (s: any) => ({ id: String(s.id), label: s.name })
-        );
-
         setClassAssignments(assignments);
         setClassOptions(classes);
-        setSubjectOptions(fallbackSubjects);
-        if (classes.length > 0) {
-          setSelectedClass(classes[0].id);
-        }
-      } catch (error) {
-        console.error('Erreur chargement des notes:', error);
+        if (classes.length > 0) setSelectedClass(classes[0].id);
       } finally {
         setLoading(false);
       }
     };
-
     loadInitial();
   }, []);
 
   useEffect(() => {
-    const loadStudents = async () => {
-      if (!selectedClass) {
-        setRows([]);
-        return;
-      }
-      try {
-        const response = await api.get(`/api/grades/classes/${selectedClass}/students`);
-        const students = response.data?.students || response.data?.data || response.data || [];
-        const mapped: GradeRow[] = students.map((student: any) => {
-          const firstName = student.first_name || '';
-          const lastName = student.last_name || '';
-          return {
-            id: Number(student.id),
-            initials: `${firstName[0] ?? ''}${lastName[0] ?? ''}`.toUpperCase(),
-            fullName: `${firstName} ${lastName}`.trim(),
-            matricule: student.matricule || student.student_number || `${student.id}`,
-            interro: null,
-            devoir: null,
-            examen: null,
-          };
-        });
-        setRows(mapped);
-
-        const assignment = classAssignments.find((item) => String(item.class.id) === selectedClass);
-        if (assignment?.subjects?.length) {
-          const options = assignment.subjects.map((item) => ({
-            id: String(item.subject.id),
-            label: item.subject.name,
-          }));
-          setSubjectOptions(options);
-          if (options.length > 0) {
-            setSelectedSubject(options[0].id);
-          }
-        }
-      } catch (error) {
-        console.error('Erreur chargement eleves classe:', error);
-      }
-    };
-
-    loadStudents();
+    const assignment = classAssignments.find((item) => String(item.class.id) === selectedClass);
+    if (assignment?.subjects?.length) {
+      const options = assignment.subjects.map((item) => ({ id: String(item.subject.id), label: item.subject.name }));
+      setSubjectOptions(options);
+      if (options.length) setSelectedSubject(options[0].id);
+    }
   }, [selectedClass, classAssignments]);
 
   useEffect(() => {
-    const loadCatalog = async () => {
-      if (!selectedClass) return;
-      try {
-        const res = await api.get('/api/grades/catalog', { params: { class_id: selectedClass } });
-        const list = res.data?.periods || [];
-        setPeriodOptions(list);
-        if (list.length) setBulletinTerm(list[0].code);
-      } catch {
-        setPeriodOptions([
-          { code: 'T1', label: '1er Trimestre' },
-          { code: 'T2', label: '2ème Trimestre' },
-          { code: 'T3', label: '3ème Trimestre' },
-        ]);
+    if (!selectedClass) return;
+    api.get('/api/grades/catalog', { params: { class_id: selectedClass } }).then((res) => {
+      const periods = res.data?.periods || [];
+      setPeriodOptions(periods);
+      setAssessmentTypes(res.data?.assessment_types || []);
+      if (periods.length) {
+        setSelectedTerm(periods[0].code);
+        setBulletinTerm(periods[0].code);
       }
-    };
-    loadCatalog();
+    });
   }, [selectedClass]);
 
-  useEffect(() => {
-    const loadBulletin = async () => {
-      if (pageTab !== 'bulletin' || !selectedClass) {
-        return;
-      }
-      try {
-        setBulletinLoading(true);
-        const academicYear = `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`;
-        const res = await api.get(`/api/grades/classes/${selectedClass}/bulletin`, {
-          params: { term: bulletinTerm, academic_year: academicYear },
-        });
-        setBulletinRows(res.data?.students || []);
-        setBulletinStats(res.data?.statistics || {});
-      } catch (error) {
-        console.error('Erreur bulletin classe:', error);
-        setBulletinRows([]);
-      } finally {
-        setBulletinLoading(false);
-      }
-    };
-    loadBulletin();
-  }, [pageTab, selectedClass, bulletinTerm]);
-
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [selectedClass, selectedSubject, selectedPeriod, rows.length]);
-
-  const { average, completionRate, remainingStudents } = useMemo(() => {
-    const totals = rows.map((row) => getTotal(row));
-    const averageValue = totals.length > 0 ? totals.reduce((a, b) => a + b, 0) / totals.length : 0;
-    const completed = rows.filter(
-      (row) => row.interro !== null && row.devoir !== null && row.examen !== null
-    ).length;
-    const completion = rows.length > 0 ? (completed / rows.length) * 100 : 0;
-    const remaining = rows.length - completed;
-
-    return {
-      average: averageValue,
-      completionRate: completion,
-      remainingStudents: remaining,
-    };
-  }, [rows]);
-
-  const indexOfLastItem = currentPage * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const paginatedRows = rows.slice(indexOfFirstItem, indexOfLastItem);
-
-  const updateScore = (id: number, field: 'interro' | 'devoir' | 'examen', value: string) => {
-    const nextValue = value === '' ? null : Number(value);
-    setRows((prev) =>
-      prev.map((row) =>
-        row.id === id
-          ? {
-              ...row,
-              [field]: nextValue,
-            }
-          : row
-      )
-    );
+  const loadSessions = async () => {
+    if (!selectedClass || !selectedSubject) return;
+    const res = await api.get('/api/grades/evaluation-sessions', {
+      params: { class_id: selectedClass, subject_id: selectedSubject, term: selectedTerm, academic_year: academicYear },
+    });
+    const list = res.data?.data || res.data || [];
+    setSessions(Array.isArray(list) ? list : []);
   };
 
-  const handleSaveAll = async () => {
-    if (!selectedClass || !selectedSubject) {
-      alert('Veuillez selectionner une classe et une matiere.');
-      return;
-    }
+  useEffect(() => {
+    if (pageTab === 'sessions' || pageTab === 'saisie') loadSessions();
+  }, [pageTab, selectedClass, selectedSubject, selectedTerm, academicYear]);
 
-    try {
-      const payload = {
+  const loadGrid = async (sessionId: number) => {
+    const res = await api.get('/api/grades/grid', {
+      params: {
         class_id: selectedClass,
         subject_id: selectedSubject,
-        term: selectedPeriod.includes('1') ? 'T1' : selectedPeriod.includes('2') ? 'T2' : 'T3',
-        academic_year: `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`,
-        type: 'devoir',
-        max_score: 80,
-        coefficient: 1,
-        title: `Saisie en masse ${selectedPeriod}`,
-        date: new Date().toISOString().slice(0, 10),
-        grades: rows
-          .filter((row) => row.interro !== null || row.devoir !== null || row.examen !== null)
-          .map((row) => ({
-            student_id: row.id,
-            score: getTotal(row),
-            comment: `Interro:${row.interro ?? 0}/10, Devoir:${row.devoir ?? 0}/20, Examen:${row.examen ?? 0}/50`,
-          })),
+        term: selectedTerm,
+        academic_year: academicYear,
+        evaluation_session_id: sessionId,
+      },
+    });
+    const students = res.data?.students || [];
+    setRows(students.map((row: any) => {
+      const s = row.student;
+      return {
+        studentId: s.id,
+        initials: `${s.first_name?.[0] || ''}${s.last_name?.[0] || ''}`.toUpperCase(),
+        fullName: `${s.first_name} ${s.last_name}`,
+        matricule: s.matricule || String(s.id),
+        score: row.assessment?.score != null ? Number(row.assessment.score) : null,
+        comment: row.assessment?.comment || '',
       };
-      await api.post('/api/grades/bulk', payload);
-      alert('Notes enregistrees avec succes.');
-    } catch (error) {
-      console.error('Erreur sauvegarde notes:', error);
-      alert("Erreur lors de l'enregistrement des notes.");
+    }));
+  };
+
+  useEffect(() => {
+    if (pageTab === 'saisie' && selectedSessionId) loadGrid(selectedSessionId);
+  }, [pageTab, selectedSessionId, selectedClass, selectedSubject, selectedTerm]);
+
+  useEffect(() => {
+    if (pageTab !== 'bulletin' || !selectedClass) return;
+    setBulletinLoading(true);
+    api.get(`/api/grades/classes/${selectedClass}/bulletin`, { params: { term: bulletinTerm, academic_year: academicYear } })
+      .then((res) => {
+        setBulletinRows(res.data?.students || []);
+        setBulletinStats(res.data?.statistics || {});
+      })
+      .finally(() => setBulletinLoading(false));
+  }, [pageTab, selectedClass, bulletinTerm, academicYear]);
+
+  const handleCreateSession = async () => {
+    const res = await api.post('/api/grades/evaluation-sessions', {
+      class_id: Number(selectedClass),
+      subject_id: Number(selectedSubject),
+      type: sessionForm.type,
+      term: selectedTerm,
+      academic_year: academicYear,
+      title: sessionForm.title,
+      date: sessionForm.date,
+      max_score: Number(sessionForm.max_score),
+    });
+    setSessionForm({ title: '', type: 'interro', max_score: '10', date: new Date().toISOString().slice(0, 10) });
+    await loadSessions();
+    if (res.data?.id) {
+      setSelectedSessionId(res.data.id);
+      setPageTab('saisie');
     }
   };
+
+  const handleSaveGrades = async () => {
+    if (!selectedSessionId) return;
+    await api.post(`/api/grades/evaluation-sessions/${selectedSessionId}/grades`, {
+      grades: rows.filter((r) => r.score !== null).map((r) => ({
+        student_id: r.studentId,
+        score: r.score,
+        comment: r.comment || null,
+      })),
+    });
+    alert('Notes enregistrées.');
+    await loadGrid(selectedSessionId);
+  };
+
+  const handlePublishSession = async () => {
+    if (!selectedSessionId) return;
+    await api.post(`/api/grades/evaluation-sessions/${selectedSessionId}/publish`);
+    await loadSessions();
+    alert('Session publiée.');
+  };
+
+  const selectedSession = sessions.find((s) => s.id === selectedSessionId);
+  const paginatedRows = rows.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  const completionRate = useMemo(() => {
+    if (!rows.length) return 0;
+    return (rows.filter((r) => r.score !== null).length / rows.length) * 100;
+  }, [rows]);
 
   if (loading) {
     return (
       <div className="grades-mock-page">
         <Skeleton className="skel-h-10" />
-        <Skeleton className="skel-h-24" />
         <Skeleton className="skel-h-24" />
       </div>
     );
@@ -253,255 +211,153 @@ const GradesPage: React.FC = () => {
 
   return (
     <div className="grades-mock-page">
-      <div className="grades-breadcrumb">
-        <span>Notes</span>
-        <span className="material-symbols-outlined">chevron_right</span>
-        <span>Gestion des Notes</span>
-        <span className="material-symbols-outlined">chevron_right</span>
-        <span className="active">Saisie en masse</span>
-      </div>
-
       <div className="grades-header">
         <div>
           <h1>Notes & bulletins</h1>
-          <p>Saisie des évaluations et consultation du classement par période.</p>
-        </div>
-        <div className="grades-header-actions">
-          {pageTab === 'saisie' && (
-            <>
-              <button className="btn btn-outline">
-                <span className="material-symbols-outlined">upload_file</span>
-                Importer Excel
-              </button>
-              <button className="btn btn-primary" onClick={handleSaveAll}>
-                <span className="material-symbols-outlined">save</span>
-                Enregistrer tout
-              </button>
-            </>
-          )}
+          <p>Sessions d&apos;évaluation, saisie par type et bulletins.</p>
         </div>
       </div>
 
       <div className="grades-page-tabs">
-        <button type="button" className={pageTab === 'saisie' ? 'active' : ''} onClick={() => setPageTab('saisie')}>
-          Saisie des notes
-        </button>
-        <button type="button" className={pageTab === 'bulletin' ? 'active' : ''} onClick={() => setPageTab('bulletin')}>
-          Bulletin de classe
-        </button>
+        <button type="button" className={pageTab === 'sessions' ? 'active' : ''} onClick={() => setPageTab('sessions')}>Sessions</button>
+        <button type="button" className={pageTab === 'saisie' ? 'active' : ''} onClick={() => setPageTab('saisie')}>Saisie</button>
+        <button type="button" className={pageTab === 'bulletin' ? 'active' : ''} onClick={() => setPageTab('bulletin')}>Bulletin</button>
       </div>
 
-      {pageTab === 'bulletin' ? (
-        <>
-          <div className="grades-filters-card">
-            <div className="filter-item">
-              <label>Classe</label>
-              <select value={selectedClass} onChange={(e) => setSelectedClass(e.target.value)}>
-                {classOptions.map((value) => (
-                  <option key={value.id} value={value.id}>{value.label}</option>
-                ))}
-              </select>
-            </div>
-            <div className="filter-item">
-              <label>Période</label>
-              <select value={bulletinTerm} onChange={(e) => setBulletinTerm(e.target.value)}>
-                {(periodOptions.length ? periodOptions : [{ code: 'T1', label: 'T1' }]).map((p) => (
-                  <option key={p.code} value={p.code}>{p.label}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-          <div className="grades-table-card">
-            {bulletinLoading ? (
-              <Skeleton className="skel-h-24" />
-            ) : (
-              <div className="grades-table-scroll">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Rang</th>
-                      <th>Élève</th>
-                      <th className="center">Moyenne /20</th>
-                      <th className="center">Position</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {bulletinRows.map((row) => (
-                      <tr key={row.student.id}>
-                        <td>{row.class_rank}</td>
-                        <td>
-                          {row.student.last_name} {row.student.first_name}
-                          <small> — {row.student.matricule || row.student.id}</small>
-                        </td>
-                        <td className="center">{Number(row.general_average).toFixed(2)}</td>
-                        <td className="center">{row.rank_display || '—'}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                {!bulletinRows.length && <p className="tab-empty">Aucun résultat calculé pour cette période.</p>}
-              </div>
-            )}
-          </div>
-          <div className="grades-summary">
-            <div className="summary-card success">
-              <h3>Moyenne de classe</h3>
-              <p>{bulletinStats.average != null ? `${bulletinStats.average} / 20` : '—'}</p>
-            </div>
-            <div className="summary-card primary">
-              <h3>Élèves classés</h3>
-              <p>{bulletinStats.count ?? 0}</p>
-            </div>
-          </div>
-        </>
-      ) : (
-        <>
       <div className="grades-filters-card">
         <div className="filter-item">
           <label>Classe</label>
           <select value={selectedClass} onChange={(e) => setSelectedClass(e.target.value)}>
-            {classOptions.map((value) => (
-              <option key={value.id} value={value.id}>
-                {value.label}
-              </option>
-            ))}
+            {classOptions.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
           </select>
         </div>
         <div className="filter-item">
-          <label>Matiere</label>
+          <label>Matière</label>
           <select value={selectedSubject} onChange={(e) => setSelectedSubject(e.target.value)}>
-            {subjectOptions.map((value) => (
-              <option key={value.id} value={value.id}>
-                {value.label}
-              </option>
-            ))}
+            {subjectOptions.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
           </select>
         </div>
         <div className="filter-item">
-          <label>Periode</label>
-          <select value={selectedPeriod} onChange={(e) => setSelectedPeriod(e.target.value)}>
-            {periods.map((value) => (
-              <option key={value} value={value}>
-                {value}
-              </option>
+          <label>Période</label>
+          <select value={selectedTerm} onChange={(e) => setSelectedTerm(e.target.value)}>
+            {(periodOptions.length ? periodOptions : [{ code: 'T1', label: 'T1' }]).map((p) => (
+              <option key={p.code} value={p.code}>{p.label}</option>
             ))}
           </select>
         </div>
-        <button className="btn btn-secondary full-btn">
-          <span className="material-symbols-outlined">filter_list</span>
-          Appliquer les filtres
-        </button>
       </div>
 
-      <div className="grades-table-card">
-        <div className="grades-table-scroll">
-          <table>
-            <thead>
-              <tr>
-                <th>Élève</th>
-                <th className="center">Interro (10)</th>
-                <th className="center">Devoir (20)</th>
-                <th className="center">Examen (50)</th>
-                <th className="center">Total (80)</th>
-                <th className="center">Statut</th>
-              </tr>
-            </thead>
-            <tbody>
-              {paginatedRows.map((row) => {
-                const total = getTotal(row);
-                const isComplete = row.interro !== null && row.devoir !== null && row.examen !== null;
-                const status = !isComplete ? 'Non saisi' : total >= 40 ? 'Reussi' : 'Echec';
-
-                return (
-                  <tr key={row.id}>
+      {pageTab === 'sessions' && (
+        <>
+          <div className="session-create-form">
+            <input placeholder="Titre (ex: Interro ch.3)" value={sessionForm.title} onChange={(e) => setSessionForm({ ...sessionForm, title: e.target.value })} />
+            <select value={sessionForm.type} onChange={(e) => setSessionForm({ ...sessionForm, type: e.target.value })}>
+              {(assessmentTypes.length ? assessmentTypes : [{ code: 'interro', label: 'Interro' }, { code: 'devoir', label: 'Devoir' }, { code: 'examen', label: 'Examen' }]).map((t) => (
+                <option key={t.code} value={t.code}>{t.label}</option>
+              ))}
+            </select>
+            <input type="number" min={1} placeholder="Barème" value={sessionForm.max_score} onChange={(e) => setSessionForm({ ...sessionForm, max_score: e.target.value })} />
+            <input type="date" value={sessionForm.date} onChange={(e) => setSessionForm({ ...sessionForm, date: e.target.value })} />
+            <button type="button" className="btn btn-primary" onClick={handleCreateSession} disabled={!sessionForm.title}>Créer session</button>
+          </div>
+          <div className="grades-table-card">
+            <table>
+              <thead><tr><th>Titre</th><th>Type</th><th>Date</th><th>Barème</th><th>Publié</th><th></th></tr></thead>
+              <tbody>
+                {sessions.map((s) => (
+                  <tr key={s.id}>
+                    <td>{s.title}</td>
+                    <td>{s.type}</td>
+                    <td>{s.date}</td>
+                    <td>{s.max_score}</td>
+                    <td>{s.is_published ? 'Oui' : 'Non'}</td>
                     <td>
-                      <div className="student-cell">
-                        <div className="avatar">{row.initials}</div>
-                        <div>
-                          <p>{row.fullName}</p>
-                          <small>MAT: {row.matricule}</small>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="center">
-                      <input
-                        type="number"
-                        min={0}
-                        max={10}
-                        value={row.interro ?? ''}
-                        onChange={(e) => updateScore(row.id, 'interro', e.target.value)}
-                      />
-                    </td>
-                    <td className="center">
-                      <input
-                        type="number"
-                        min={0}
-                        max={20}
-                        value={row.devoir ?? ''}
-                        onChange={(e) => updateScore(row.id, 'devoir', e.target.value)}
-                      />
-                    </td>
-                    <td className="center">
-                      <input
-                        type="number"
-                        min={0}
-                        max={50}
-                        value={row.examen ?? ''}
-                        onChange={(e) => updateScore(row.id, 'examen', e.target.value)}
-                      />
-                    </td>
-                    <td className={`center total ${status === 'Echec' ? 'danger' : status === 'Reussi' ? 'ok' : ''}`}>
-                      {total}
-                    </td>
-                    <td className="center">
-                      <span
-                        className={`badge ${
-                          status === 'Reussi' ? 'success' : status === 'Echec' ? 'error' : 'neutral'
-                        }`}
-                      >
-                        {status}
-                      </span>
+                      <button type="button" className="btn btn-outline btn-sm" onClick={() => { setSelectedSessionId(s.id); setPageTab('saisie'); }}>Saisir</button>
                     </td>
                   </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                ))}
+              </tbody>
+            </table>
+            {sessions.length === 0 && <p className="tab-empty">Aucune session pour cette sélection.</p>}
+          </div>
+        </>
+      )}
 
-        <Pagination
-          currentPage={currentPage}
-          totalItems={rows.length}
-          itemsPerPage={itemsPerPage}
-          onPageChange={setCurrentPage}
-        />
-      </div>
+      {pageTab === 'saisie' && (
+        <>
+          <div className="filter-item" style={{ marginBottom: '1rem' }}>
+            <label>Session</label>
+            <select value={selectedSessionId ?? ''} onChange={(e) => setSelectedSessionId(Number(e.target.value))}>
+              <option value="">Choisir une session</option>
+              {sessions.map((s) => <option key={s.id} value={s.id}>{s.title} ({s.type})</option>)}
+            </select>
+          </div>
+          {selectedSession && (
+            <div className="grades-header-actions" style={{ marginBottom: '1rem' }}>
+              <button type="button" className="btn btn-primary" onClick={handleSaveGrades}>Enregistrer</button>
+              <button type="button" className="btn btn-outline" onClick={handlePublishSession}>Publier session</button>
+            </div>
+          )}
+          {selectedSessionId ? (
+            <div className="grades-table-card">
+              <table>
+                <thead>
+                  <tr><th>Élève</th><th className="center">Note / {selectedSession?.max_score ?? '—'}</th><th>Commentaire</th></tr>
+                </thead>
+                <tbody>
+                  {paginatedRows.map((row) => (
+                    <tr key={row.studentId}>
+                      <td>{row.fullName} <small>{row.matricule}</small></td>
+                      <td className="center">
+                        <input type="number" min={0} max={selectedSession?.max_score} value={row.score ?? ''}
+                          onChange={(e) => setRows((prev) => prev.map((r) => r.studentId === row.studentId ? { ...r, score: e.target.value === '' ? null : Number(e.target.value) } : r))} />
+                      </td>
+                      <td>
+                        <input value={row.comment} onChange={(e) => setRows((prev) => prev.map((r) => r.studentId === row.studentId ? { ...r, comment: e.target.value } : r))} />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <Pagination currentPage={currentPage} totalItems={rows.length} itemsPerPage={itemsPerPage} onPageChange={setCurrentPage} />
+              <div className="grades-summary">
+                <div className="summary-card primary"><h3>Taux de saisie</h3><p>{Math.round(completionRate)}%</p></div>
+              </div>
+            </div>
+          ) : (
+            <p className="tab-empty">Sélectionnez une session pour saisir les notes.</p>
+          )}
+        </>
+      )}
 
-      <div className="grades-summary">
-        <div className="summary-card success">
-          <div className="summary-top">
-            <span className="material-symbols-outlined">trending_up</span>
-            <small>AUTO-CALCUL</small>
+      {pageTab === 'bulletin' && (
+        <>
+          <div className="filter-item" style={{ marginBottom: '1rem' }}>
+            <label>Période bulletin</label>
+            <select value={bulletinTerm} onChange={(e) => setBulletinTerm(e.target.value)}>
+              {(periodOptions.length ? periodOptions : [{ code: 'T1', label: 'T1' }]).map((p) => (
+                <option key={p.code} value={p.code}>{p.label}</option>
+              ))}
+            </select>
           </div>
-          <h3>Moyenne de classe</h3>
-          <p>{average.toFixed(1)} / 80</p>
-        </div>
-        <div className="summary-card primary">
-          <div className="summary-top">
-            <span className="material-symbols-outlined">check_circle</span>
-            <small>STATUT</small>
-          </div>
-          <h3>Taux de saisie</h3>
-          <p>{Math.round(completionRate)}%</p>
-        </div>
-        <div className="summary-card neutral">
-          <div className="summary-top">
-            <span className="material-symbols-outlined">group</span>
-          </div>
-          <h3>Eleves restants</h3>
-          <p>{remainingStudents} eleve(s)</p>
-        </div>
-      </div>
+          {bulletinLoading ? <Skeleton className="skel-h-24" /> : (
+            <div className="grades-table-card">
+              <table>
+                <thead><tr><th>Rang</th><th>Élève</th><th className="center">Moyenne /20</th><th className="center">Position</th></tr></thead>
+                <tbody>
+                  {bulletinRows.map((row) => (
+                    <tr key={row.student.id}>
+                      <td>{row.class_rank}</td>
+                      <td>{row.student.last_name} {row.student.first_name}</td>
+                      <td className="center">{Number(row.general_average).toFixed(2)}</td>
+                      <td className="center">{row.rank_display || '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {!bulletinRows.length && <p className="tab-empty">Aucun résultat calculé.</p>}
+            </div>
+          )}
         </>
       )}
     </div>
@@ -509,7 +365,3 @@ const GradesPage: React.FC = () => {
 };
 
 export default GradesPage;
-
-
-
-

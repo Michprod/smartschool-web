@@ -15,6 +15,18 @@ export function preloadRoute(path: string): void {
     case '/finance':
       void import('@/features/Finance/Pages/FinancialDashboard');
       break;
+    case '/teacher':
+      void import('@/features/Teachers/Pages/TeacherDashboardPage');
+      break;
+    case '/teachers':
+      void import('@/features/Teachers/Pages/TeacherProfilePage');
+      break;
+    case '/teachers/workload':
+      void import('@/features/Teachers/Pages/TeacherWorkloadPage');
+      break;
+    case '/conduct':
+      void import('@/features/Conduct/Pages/ConductPage');
+      break;
     case '/grades':
       void import('@/features/Grades/Pages/GradesPage');
       break;

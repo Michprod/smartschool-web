@@ -19,9 +19,12 @@ interface MenuItem {
 
 const menuItems: MenuItem[] = [
   { id: 'dashboard', label: 'Dashboard', icon: 'dashboard' },
+  { id: 'teacher', label: 'Portail enseignant', icon: 'co_present', permission: 'grades:read' },
   { id: 'students', label: 'Élèves', icon: 'group', permission: 'students:read' },
   { id: 'classes', label: 'Classes', icon: 'class', permission: 'classes:read' },
   { id: 'grades', label: 'Notes', icon: 'school', permission: 'grades:read' },
+  { id: 'conduct', label: 'Conduite', icon: 'psychology', permission: 'conduct:write' },
+  { id: 'teachers', label: 'Enseignants', icon: 'badge', permission: 'teachers:read' },
   { id: 'finance', label: 'Finance', icon: 'payments', permission: 'finance:read' },
   { id: 'admissions', label: 'Admissions', icon: 'person_add', permission: 'admissions:read' },
   { id: 'events', label: 'Calendrier', icon: 'calendar_today', permission: 'events:read' },

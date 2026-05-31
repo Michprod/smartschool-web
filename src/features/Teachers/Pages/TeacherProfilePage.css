@@ -1,0 +1,15 @@
+.teacher-profile-page .tp-layout { display: grid; grid-template-columns: 240px 1fr; gap: 1.5rem; margin-top: 1rem; }
+.tp-list { display: flex; flex-direction: column; gap: 0.5rem; }
+.tp-list button { text-align: left; padding: 0.75rem 1rem; border: 1px solid #e2e8f0; border-radius: 8px; background: #fff; cursor: pointer; }
+.tp-list button.active { border-color: var(--primary, #2563eb); background: #eff6ff; }
+.overload-badge { display: inline-block; margin-left: 0.5rem; font-size: 0.7rem; background: #fee2e2; color: #b91c1c; padding: 0.1rem 0.4rem; border-radius: 4px; }
+.tp-detail { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 1.5rem; }
+.tp-kpis { display: flex; gap: 1rem; margin: 1rem 0; flex-wrap: wrap; }
+.tp-kpis .kpi { padding: 1rem; background: #f8fafc; border-radius: 8px; min-width: 120px; }
+.tp-kpis .kpi.warn { background: #fef3c7; }
+.tp-kpis strong { display: block; font-size: 1.5rem; }
+.tp-homeroom { margin: 1rem 0; }
+
+@media (max-width: 768px) {
+  .teacher-profile-page .tp-layout { grid-template-columns: 1fr; }
+}

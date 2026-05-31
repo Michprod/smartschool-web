@@ -25,7 +25,7 @@ const ProfilePage: React.FC = () => {
   const auth = { user: authUser };
   const currentUser = auth?.user;
 
-  const [activeTab, setActiveTab] = useState<'personal' | 'security' | 'preferences'>('personal');
+  const [activeTab, setActiveTab] = useState<'personal' | 'security' | 'preferences' | 'teaching'>('personal');
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -54,6 +54,7 @@ const ProfilePage: React.FC = () => {
   });
 
   const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [teachingProfile, setTeachingProfile] = useState<any>(null);
 
   const provinces = [
     'Kinshasa', 'Kongo-Central', 'Kwango', 'Kwilu', 'Mai-Ndombe',
@@ -88,6 +89,15 @@ const ProfilePage: React.FC = () => {
         province: user.province || '',
         bio: user.bio || ''
       });
+
+      if (user.role === 'teacher') {
+        try {
+          const tp = await api.get('/api/me/teaching-profile');
+          setTeachingProfile(tp.data);
+        } catch {
+          setTeachingProfile(null);
+        }
+      }
     } catch (error: any) {
       console.error('Error loading profile:', error);
       showMessage('error', 'Erreur lors du chargement du profil');
@@ -261,6 +271,14 @@ const ProfilePage: React.FC = () => {
         >
            Préférences
         </button>
+        {formData.role === 'teacher' && (
+          <button
+            className={`tab-btn ${activeTab === 'teaching' ? 'active' : ''}`}
+            onClick={() => setActiveTab('teaching')}
+          >
+            Profil enseignant
+          </button>
+        )}
       </div>
 
       {/* Content */}
@@ -498,6 +516,29 @@ const ProfilePage: React.FC = () => {
             <p style={{ color: '#7f8c8d', padding: '20px' }}>
               Les préférences seront disponibles dans une prochaine mise à jour.
             </p>
+          </div>
+        )}
+
+        {activeTab === 'teaching' && teachingProfile && (
+          <div className="profile-section-new">
+            <div className="section-title"><h2>Profil pédagogique</h2></div>
+            <div className="form-grid" style={{ marginBottom: '1rem' }}>
+              <div><strong>Charge assignée</strong><p>{teachingProfile.workload?.assigned_hours ?? 0} h / {teachingProfile.workload?.contractual_hours ?? '—'} h</p></div>
+              <div><strong>Classes</strong><p>{teachingProfile.workload?.class_count ?? 0}</p></div>
+              <div><strong>Cours</strong><p>{teachingProfile.workload?.course_count ?? 0}</p></div>
+            </div>
+            {teachingProfile.principal_class && (
+              <p><strong>Classe titulaire :</strong> {teachingProfile.principal_class.display_name}</p>
+            )}
+            <h3 style={{ marginTop: '1.5rem' }}>Affectations</h3>
+            <table className="data-table" style={{ width: '100%', marginTop: '0.5rem' }}>
+              <thead><tr><th>Classe</th><th>Matière</th><th>Coef</th><th>h/sem</th></tr></thead>
+              <tbody>
+                {(teachingProfile.assignments || []).filter((a: any) => a.is_active).map((a: any) => (
+                  <tr key={a.id}><td>{a.class_name}</td><td>{a.subject_name}</td><td>{a.coefficient}</td><td>{a.hours_per_week}</td></tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
       </div>

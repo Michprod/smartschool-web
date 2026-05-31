@@ -1,0 +1,4 @@
+.conduct-page .conduct-filters { display: flex; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
+.conduct-page .conduct-filters select { padding: 0.5rem 0.75rem; border-radius: 6px; border: 1px solid #ddd; min-width: 200px; }
+.conduct-page input[type="number"] { width: 80px; padding: 0.4rem; }
+.conduct-page input[type="text"] { width: 100%; min-width: 200px; padding: 0.4rem 0.6rem; }

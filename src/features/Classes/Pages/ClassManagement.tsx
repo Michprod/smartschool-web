@@ -5,6 +5,7 @@ import Can from '@/core/Components/Can';
 import Skeleton from '@/core/Components/Skeleton';
 import Pagination from '@/core/Components/Pagination';
 import ClassForm from '../Components/ClassForm';
+import ClassSubjectsPanel from '../Components/ClassSubjectsPanel';
 import type { ClassFormData, EducationCycle, SchoolClassItem } from '../types';
 import './ClassManagement.css';
 
@@ -34,6 +35,7 @@ const ClassManagement: React.FC = () => {
   const [search, setSearch] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<ClassFormData | undefined>();
+  const [subjectsClass, setSubjectsClass] = useState<SchoolClassItem | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
@@ -119,6 +121,19 @@ const ClassManagement: React.FC = () => {
       alert(err.response?.data?.message || 'Suppression impossible.');
     }
   };
+
+  if (subjectsClass) {
+    return (
+      <div className="class-management class-full-page">
+        <ClassSubjectsPanel
+          classId={subjectsClass.id}
+          className={subjectsClass.display_name}
+          academicYear={subjectsClass.academic_year}
+          onClose={() => setSubjectsClass(null)}
+        />
+      </div>
+    );
+  }
 
   if (showForm) {
     return (
@@ -208,6 +223,9 @@ const ClassManagement: React.FC = () => {
                     <td>{c.capacity}</td>
                     <td>{c.teacher ? `${c.teacher.first_name} ${c.teacher.last_name}` : '—'}</td>
                     <td className="actions-cell">
+                      <button type="button" className="btn-icon" onClick={() => setSubjectsClass(c)} title="Matières & profs">
+                        <span className="material-symbols-outlined">menu_book</span>
+                      </button>
                       <Can permission="classes:write">
                         <button type="button" className="btn-icon" onClick={() => handleEdit(c)} title="Modifier">
                           <span className="material-symbols-outlined">edit</span>
