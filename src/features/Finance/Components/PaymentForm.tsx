@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
+import api from '@/core/api/client';
 import './PaymentForm.css';
 
 export interface PaymentFormData {
@@ -64,6 +65,31 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
 
   const [errors, setErrors] = useState<Partial<Record<keyof PaymentFormData, string>>>({});
   const [exchangeRate] = useState(2800); // CDF to USD rate
+  const [feeTypes, setFeeTypes] = useState<Array<{ id: number; code: string; label: string }>>([]);
+
+  useEffect(() => {
+    let mounted = true;
+    api
+      .get('/api/finance/config')
+      .then((res) => {
+        if (!mounted) return;
+        const types = res.data?.fee_types || [];
+        setFeeTypes(types);
+        setFormData((prev) => {
+          if (!types.length) return prev;
+          const hasCurrent = types.some((t: any) => t.code === prev.paymentType);
+          if (hasCurrent) return prev;
+          return { ...prev, paymentType: (types[0]?.code ?? prev.paymentType) as any };
+        });
+      })
+      .catch(() => {
+        // En fallback, on conserve les valeurs hardcodées ci-dessous
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -188,15 +214,24 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
           <div className="form-row">
             <div className="form-group">
               <label>Type de Paiement *</label>
-              <select name="paymentType" value={formData.paymentType} onChange={handleChange}>
-                <option value="tuition">Frais Scolaires</option>
-                <option value="registration">Frais d'Inscription</option>
-                <option value="exam">Frais d'Examen</option>
-                <option value="uniform">Uniforme</option>
-                <option value="transport">Transport</option>
-                <option value="meal">Cantine</option>
-                <option value="other">Autre</option>
-              </select>
+                <select name="paymentType" value={formData.paymentType} onChange={handleChange}>
+                  {(feeTypes.length
+                    ? feeTypes
+                    : [
+                        { code: 'tuition', label: 'Frais Scolaires' },
+                        { code: 'registration', label: "Frais d'Inscription" },
+                        { code: 'exam', label: "Frais d'Examen" },
+                        { code: 'uniform', label: 'Uniforme' },
+                        { code: 'transport', label: 'Transport' },
+                        { code: 'meal', label: 'Cantine' },
+                        { code: 'other', label: 'Autre' },
+                      ]
+                  ).map((t: any) => (
+                    <option key={t.code} value={t.code}>
+                      {t.label}
+                    </option>
+                  ))}
+                </select>
             </div>
 
             <div className="form-group">

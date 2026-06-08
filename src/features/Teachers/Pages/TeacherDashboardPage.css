@@ -1,3 +1,4 @@
+.teacher-dashboard .page-hero { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 1rem; }
 .teacher-dashboard .td-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
 .td-kpi { background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 1rem; }
 .td-kpi.warn { border-color: #fbbf24; background: #fffbeb; }
@@ -8,3 +9,7 @@
 .td-section h2 { font-size: 1.1rem; margin-bottom: 1rem; }
 .td-sessions { list-style: none; padding: 0; margin: 0; }
 .td-sessions li { padding: 0.75rem; border-bottom: 1px solid #f1f5f9; }
+.td-assignments { list-style: none; padding: 0; margin: 0; }
+.td-assignments li { padding: 0.6rem 0; border-bottom: 1px solid #f1f5f9; }
+.td-empty-banner { background: #fffbeb; border: 1px solid #fcd34d; border-radius: 8px; padding: 1rem 1.25rem; margin-bottom: 1.5rem; color: #78350f; }
+.td-empty-banner p { margin: 0.25rem 0; }

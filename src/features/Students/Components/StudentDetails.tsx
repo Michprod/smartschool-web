@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import api from '@/core/api/client';
+import { toNullableNumber } from '@/core/utils/numbers';
 import { extractItem, extractList } from '@/core/api/extractData';
 import Skeleton from '@/core/Components/Skeleton';
 import StudentAcademicPanel from './StudentAcademicPanel';
@@ -117,7 +118,7 @@ const StudentDetails: React.FC<StudentDetailsProps> = ({
       const avgRes = await api.get(`/api/grades/students/${student.id}/averages`, {
         params: { term, academic_year: academicYear },
       });
-      setHeroAverage(avgRes.data?.general_average ?? null);
+      setHeroAverage(toNullableNumber(avgRes.data?.general_average));
     } catch {
       setHeroAverage(null);
     }

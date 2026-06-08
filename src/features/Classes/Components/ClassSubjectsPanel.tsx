@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import api from '@/core/api/client';
+import { extractList, mapTeacherOptions } from '@/core/api/extractData';
 import Can from '@/core/Components/Can';
+import ScheduleEditorModal, { type ScheduleData } from './ScheduleEditorModal';
 import './ClassSubjectsPanel.css';
 
 type TeacherOption = { id: number; first_name: string; last_name: string };
@@ -14,6 +16,7 @@ type ClassSubjectRow = {
   hours_per_week: number;
   academic_year: string;
   is_active: boolean;
+  schedule?: ScheduleData | null;
   subject?: { id: number; name: string; code?: string };
   teacher?: { id: number; first_name: string; last_name: string };
 };
@@ -31,6 +34,7 @@ const ClassSubjectsPanel: React.FC<Props> = ({ classId, className, academicYear,
   const [subjects, setSubjects] = useState<SubjectOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [scheduleRow, setScheduleRow] = useState<ClassSubjectRow | null>(null);
   const [form, setForm] = useState({
     subject_id: '',
     teacher_id: '',
@@ -43,15 +47,13 @@ const ClassSubjectsPanel: React.FC<Props> = ({ classId, className, academicYear,
     setLoading(true);
     try {
       const [subjectsRes, teachersRes, assignRes] = await Promise.all([
-        api.get('/api/subjects'),
-        api.get('/api/teachers', { params: { per_page: 100 } }),
+        api.get(`/api/classes/${classId}/available-subjects`),
+        api.get('/api/teachers', { params: { per_page: 100, is_active: 1 } }),
         api.get(`/api/classes/${classId}/subjects`),
       ]);
-      setSubjects(Array.isArray(subjectsRes.data) ? subjectsRes.data : subjectsRes.data?.data || []);
-      const teacherList = teachersRes.data?.data || teachersRes.data || [];
-      setTeachers(teacherList.map((t: any) => t.user || t));
-      const assignData = assignRes.data?.data || assignRes.data || [];
-      setRows(Array.isArray(assignData) ? assignData : []);
+      setSubjects(extractList<SubjectOption>(subjectsRes));
+      setTeachers(mapTeacherOptions(teachersRes));
+      setRows(extractList<ClassSubjectRow>(assignRes));
     } catch (e) {
       console.error(e);
     } finally {
@@ -152,6 +154,14 @@ const ClassSubjectsPanel: React.FC<Props> = ({ classId, className, academicYear,
                 <td>{row.is_active ? 'Oui' : 'Non'}</td>
                 <Can permission="classes:write">
                   <td className="actions-cell">
+                    <button
+                      type="button"
+                      className="btn-icon"
+                      onClick={() => setScheduleRow(row)}
+                      title="Planifier"
+                    >
+                      <span className="material-symbols-outlined">schedule</span>
+                    </button>
                     <button type="button" className="btn-icon" onClick={() => handleToggle(row)} title="Activer/Désactiver">
                       <span className="material-symbols-outlined">toggle_on</span>
                     </button>
@@ -166,6 +176,16 @@ const ClassSubjectsPanel: React.FC<Props> = ({ classId, className, academicYear,
         </table>
       )}
       {!loading && rows.length === 0 && <p className="empty-msg">Aucune affectation pour cette classe.</p>}
+
+      {scheduleRow && (
+        <ScheduleEditorModal
+          assignmentId={scheduleRow.id}
+          label={`${scheduleRow.subject?.name || 'Matière'} — ${className}`}
+          initialSchedule={scheduleRow.schedule}
+          onClose={() => setScheduleRow(null)}
+          onSaved={load}
+        />
+      )}
     </div>
   );
 };

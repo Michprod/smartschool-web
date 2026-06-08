@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import api from '@/core/api/client';
+import { downloadReportCardPdf } from '@/core/utils/reportCardPdf';
+import { toNullableNumber } from '@/core/utils/numbers';
 
 type PeriodOption = { code: string; label: string };
 
@@ -28,7 +30,7 @@ type AcademicProfile = {
   term_label: string;
   general_average: number | null;
   rank_display: string | null;
-  report_card?: { decision?: string; decision_label?: string; class_council_observation?: string };
+  report_card?: { decision?: string; decision_label?: string; class_council_observation?: string; is_published?: boolean };
   subject_averages?: Array<{ subject?: { name: string }; average_score: number; appreciation?: string }>;
   assessments_by_type?: Array<{ type: string; type_label: string; count: number; assessments: AssessmentItem[] }>;
 };
@@ -56,6 +58,7 @@ const StudentAcademicPanel: React.FC<StudentAcademicPanelProps> = ({
   const [schemeLabel, setSchemeLabel] = useState('Trimestre');
   const [timeline, setTimeline] = useState<EvolutionTimelineItem[]>([]);
   const [profile, setProfile] = useState<AcademicProfile | null>(null);
+  const [pdfLoading, setPdfLoading] = useState(false);
 
   useEffect(() => {
     const loadCatalog = async () => {
@@ -92,8 +95,21 @@ const StudentAcademicPanel: React.FC<StudentAcademicPanelProps> = ({
             params: { term, academic_year: academicYear },
           }),
         ]);
-        setTimeline(evoRes.data?.timeline || []);
-        setProfile(profileRes.data || null);
+        setTimeline(
+          (evoRes.data?.timeline || []).map((item: EvolutionTimelineItem) => ({
+            ...item,
+            general_average: toNullableNumber(item.general_average),
+          }))
+        );
+        const rawProfile = profileRes.data;
+        setProfile(
+          rawProfile
+            ? {
+                ...rawProfile,
+                general_average: toNullableNumber(rawProfile.general_average),
+              }
+            : null
+        );
       } catch (err: unknown) {
         const message =
           (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
@@ -112,8 +128,34 @@ const StudentAcademicPanel: React.FC<StudentAcademicPanelProps> = ({
   const decisionLabel =
     profile?.report_card?.decision_label || profile?.report_card?.decision || '—';
 
+  const handleDownloadPdf = async () => {
+    setPdfLoading(true);
+    try {
+      await downloadReportCardPdf({ studentId, term, academicYear });
+    } catch {
+      setError('Impossible de télécharger le bulletin PDF.');
+    } finally {
+      setPdfLoading(false);
+    }
+  };
+
   return (
     <div className="academic-panel">
+      {profile?.report_card && (
+        <div className="academic-pdf-bar">
+          <button
+            type="button"
+            className="btn btn-outline btn-sm"
+            disabled={pdfLoading}
+            onClick={handleDownloadPdf}
+          >
+            {pdfLoading ? 'Téléchargement…' : 'Télécharger le bulletin PDF'}
+          </button>
+          {!profile.report_card.is_published && (
+            <span className="academic-pdf-hint">Bulletin en brouillon (visible enseignants / admin).</span>
+          )}
+        </div>
+      )}
       <div className="metrics-row">
         <div className="metric-box">
           <small>Moyenne ({profile?.term_label || term})</small>

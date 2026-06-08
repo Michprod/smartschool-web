@@ -25,6 +25,8 @@ const ConfigurationHubPage = lazy(() => import('@/features/Configuration/Pages/C
 const SchoolConfigPage = lazy(() => import('@/features/Configuration/Pages/SchoolConfigPage'));
 const FinanceConfigPage = lazy(() => import('@/features/Configuration/Pages/FinanceConfigPage'));
 const SubjectsConfigPage = lazy(() => import('@/features/Configuration/Pages/SubjectsConfigPage'));
+const AssignmentsConfigPage = lazy(() => import('@/features/Configuration/Pages/AssignmentsConfigPage'));
+const TimetableConfigPage = lazy(() => import('@/features/Configuration/Pages/TimetableConfigPage'));
 const GeoConfigPage = lazy(() => import('@/features/Configuration/Pages/GeoConfigPage'));
 const PersonnelRefConfigPage = lazy(() => import('@/features/Configuration/Pages/PersonnelRefConfigPage'));
 const RolesConfigPage = lazy(() => import('@/features/Configuration/Pages/RolesConfigPage'));
@@ -158,6 +160,8 @@ export default function AppRouter() {
           <Route path="/configuration/ecole" element={<PermissionRoute permission="settings:read"><SchoolConfigPage /></PermissionRoute>} />
           <Route path="/configuration/finance" element={<PermissionRoute permission="finance:read"><FinanceConfigPage /></PermissionRoute>} />
           <Route path="/configuration/matieres" element={<PermissionRoute permission="classes:read"><SubjectsConfigPage /></PermissionRoute>} />
+          <Route path="/configuration/affectations" element={<PermissionRoute permission="classes:read"><AssignmentsConfigPage /></PermissionRoute>} />
+          <Route path="/configuration/emploi-du-temps" element={<PermissionRoute permission="classes:read"><TimetableConfigPage /></PermissionRoute>} />
           <Route path="/configuration/geo" element={<PermissionRoute permission="settings:read"><GeoConfigPage /></PermissionRoute>} />
           <Route path="/configuration/personnel-ref" element={<PermissionRoute permission="settings:read"><PersonnelRefConfigPage /></PermissionRoute>} />
           <Route path="/configuration/roles" element={<PermissionRoute permission="settings:read"><RolesConfigPage /></PermissionRoute>} />

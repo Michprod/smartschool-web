@@ -21,6 +21,22 @@ export function extractList<T>(response: { data: unknown }): T[] {
   return [];
 }
 
+export type TeacherOption = { id: number; first_name: string; last_name: string };
+
+/** Profils enseignants (paginés) ou comptes users. */
+export function mapTeacherOptions(response: { data: unknown }): TeacherOption[] {
+  return extractList<{ user?: TeacherOption } & TeacherOption>(response)
+    .map((t) => {
+      const u = t.user ?? t;
+      return {
+        id: Number(u.id),
+        first_name: u.first_name,
+        last_name: u.last_name,
+      };
+    })
+    .filter((t) => t.id > 0);
+}
+
 export function extractItem<T>(response: { data: unknown }): T {
   const payload = response.data as Record<string, unknown>;
 

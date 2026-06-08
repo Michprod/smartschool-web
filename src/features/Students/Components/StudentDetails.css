@@ -487,6 +487,22 @@
   gap: 16px;
 }
 
+.academic-pdf-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+}
+
+.academic-pdf-hint {
+  font-size: 0.85rem;
+  color: var(--text-muted, #64748b);
+}
+
 .academic-section h4 {
   margin: 0 0 10px;
   font-size: 0.95rem;

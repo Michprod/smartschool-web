@@ -1,6 +1,7 @@
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/core/auth/AuthProvider';
 import { hasPermission } from '@/core/auth/types';
+import Skeleton from '@/core/Components/Skeleton';
 
 interface PermissionRouteProps {
   permission: string;
@@ -11,7 +12,12 @@ export default function PermissionRoute({ permission, children }: PermissionRout
   const { user, loading } = useAuth();
 
   if (loading) {
-    return null;
+    return (
+      <div className="loading-screen">
+        <Skeleton className="skel-h-10" />
+        <Skeleton className="skel-h-24" />
+      </div>
+    );
   }
 
   if (!user || !hasPermission(user.all_permissions, permission)) {

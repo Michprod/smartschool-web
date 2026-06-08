@@ -1,7 +1,10 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import api from '@/core/api/client';
+import { useAuth } from '@/core/auth/AuthProvider';
+import { fetchSchoolYear } from '@/core/utils/schoolYear';
 import Pagination from '@/core/Components/Pagination';
 import Skeleton from '@/core/Components/Skeleton';
+import { downloadReportCardPdf } from '@/core/utils/reportCardPdf';
 import './GradesPage.css';
 
 type GradeRow = {
@@ -14,7 +17,11 @@ type GradeRow = {
 };
 
 type Option = { id: string; label: string };
-type ClassAssignment = { class: { id: number; name: string; display_name?: string }; subjects?: Array<{ subject: { id: number; name: string } }> };
+type ClassAssignment = {
+  class: { id: number; name: string; display_name?: string };
+  is_principal?: boolean;
+  subjects?: Array<{ subject: { id: number; name: string } }>;
+};
 
 type EvalSession = {
   id: number;
@@ -33,17 +40,21 @@ type BulletinRow = {
   general_average: number;
   rank_display: string | null;
   class_rank: number;
+  report_card?: {
+    decision?: string;
+    decision_label?: string;
+    is_published?: boolean;
+  } | null;
 };
 
-const currentYear = () => `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`;
-
 const GradesPage: React.FC = () => {
+  const { user } = useAuth();
   const [pageTab, setPageTab] = useState<PageTab>('sessions');
   const [loading, setLoading] = useState(true);
   const [selectedClass, setSelectedClass] = useState('');
   const [selectedSubject, setSelectedSubject] = useState('');
   const [selectedTerm, setSelectedTerm] = useState('T1');
-  const [academicYear] = useState(currentYear());
+  const [academicYear, setAcademicYear] = useState('2025-2026');
   const [rows, setRows] = useState<GradeRow[]>([]);
   const [classOptions, setClassOptions] = useState<Option[]>([]);
   const [subjectOptions, setSubjectOptions] = useState<Option[]>([]);
@@ -51,20 +62,30 @@ const GradesPage: React.FC = () => {
   const [periodOptions, setPeriodOptions] = useState<Array<{ code: string; label: string }>>([]);
   const [assessmentTypes, setAssessmentTypes] = useState<Array<{ code: string; label: string }>>([]);
   const [sessions, setSessions] = useState<EvalSession[]>([]);
+  const [classTermSessions, setClassTermSessions] = useState<EvalSession[]>([]);
   const [selectedSessionId, setSelectedSessionId] = useState<number | null>(null);
-  const [sessionForm, setSessionForm] = useState({ title: '', type: 'interro', max_score: '10', date: new Date().toISOString().slice(0, 10) });
+  const [sessionForm, setSessionForm] = useState({ title: '', type: 'interrogation', max_score: '10', date: new Date().toISOString().slice(0, 10) });
   const [bulletinRows, setBulletinRows] = useState<BulletinRow[]>([]);
-  const [bulletinStats, setBulletinStats] = useState<{ average?: number; count?: number }>({});
+  const [bulletinStats, setBulletinStats] = useState<{ average?: number; count?: number; min?: number; max?: number }>({});
   const [bulletinTerm, setBulletinTerm] = useState('T1');
   const [bulletinLoading, setBulletinLoading] = useState(false);
+  const [finalizeLoading, setFinalizeLoading] = useState<'calculate' | 'generate' | 'publish' | null>(null);
+  const [pdfDownloadingId, setPdfDownloadingId] = useState<number | null>(null);
+  const [finalizeMessage, setFinalizeMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
+
+  const isAdmin = user?.role === 'admin';
+  const selectedAssignment = classAssignments.find((item) => String(item.class.id) === selectedClass);
+  const canManageReportCards = isAdmin || !!selectedAssignment?.is_principal;
 
   useEffect(() => {
     const loadInitial = async () => {
       try {
         setLoading(true);
-        const res = await api.get('/api/grades/my-classes');
+        const year = await fetchSchoolYear();
+        setAcademicYear(year);
+        const res = await api.get('/api/grades/my-classes', { params: { academic_year: year } });
         const assignments: ClassAssignment[] = Array.isArray(res.data) ? res.data : res.data?.data || [];
         const classes = assignments.map((item) => ({
           id: String(item.class.id),
@@ -111,9 +132,22 @@ const GradesPage: React.FC = () => {
     setSessions(Array.isArray(list) ? list : []);
   };
 
+  const loadClassTermSessions = useCallback(async () => {
+    if (!selectedClass) return;
+    const res = await api.get('/api/grades/evaluation-sessions', {
+      params: { class_id: selectedClass, term: bulletinTerm, academic_year: academicYear, per_page: 200 },
+    });
+    const list = res.data?.data || res.data || [];
+    setClassTermSessions(Array.isArray(list) ? list : []);
+  }, [selectedClass, bulletinTerm, academicYear]);
+
   useEffect(() => {
     if (pageTab === 'sessions' || pageTab === 'saisie') loadSessions();
   }, [pageTab, selectedClass, selectedSubject, selectedTerm, academicYear]);
+
+  useEffect(() => {
+    if (pageTab === 'bulletin') loadClassTermSessions();
+  }, [pageTab, loadClassTermSessions]);
 
   const loadGrid = async (sessionId: number) => {
     const res = await api.get('/api/grades/grid', {
@@ -126,7 +160,7 @@ const GradesPage: React.FC = () => {
       },
     });
     const students = res.data?.students || [];
-    setRows(students.map((row: any) => {
+    setRows(students.map((row: { student: { id: number; first_name?: string; last_name?: string; matricule?: string }; assessment?: { score?: number; comment?: string } }) => {
       const s = row.student;
       return {
         studentId: s.id,
@@ -143,16 +177,29 @@ const GradesPage: React.FC = () => {
     if (pageTab === 'saisie' && selectedSessionId) loadGrid(selectedSessionId);
   }, [pageTab, selectedSessionId, selectedClass, selectedSubject, selectedTerm]);
 
-  useEffect(() => {
-    if (pageTab !== 'bulletin' || !selectedClass) return;
+  const reloadBulletin = useCallback(async () => {
+    if (!selectedClass) return;
     setBulletinLoading(true);
-    api.get(`/api/grades/classes/${selectedClass}/bulletin`, { params: { term: bulletinTerm, academic_year: academicYear } })
-      .then((res) => {
-        setBulletinRows(res.data?.students || []);
-        setBulletinStats(res.data?.statistics || {});
-      })
-      .finally(() => setBulletinLoading(false));
-  }, [pageTab, selectedClass, bulletinTerm, academicYear]);
+    setFinalizeMessage(null);
+    try {
+      const res = await api.get(`/api/grades/classes/${selectedClass}/bulletin`, {
+        params: { term: bulletinTerm, academic_year: academicYear },
+      });
+      setBulletinRows(res.data?.students || []);
+      setBulletinStats(res.data?.statistics || {});
+    } finally {
+      setBulletinLoading(false);
+    }
+  }, [selectedClass, bulletinTerm, academicYear]);
+
+  useEffect(() => {
+    if (pageTab === 'bulletin' && selectedClass) reloadBulletin();
+  }, [pageTab, selectedClass, bulletinTerm, academicYear, reloadBulletin]);
+
+  const unpublishedSessionsCount = useMemo(
+    () => classTermSessions.filter((s) => !s.is_published).length,
+    [classTermSessions]
+  );
 
   const handleCreateSession = async () => {
     const res = await api.post('/api/grades/evaluation-sessions', {
@@ -165,7 +212,7 @@ const GradesPage: React.FC = () => {
       date: sessionForm.date,
       max_score: Number(sessionForm.max_score),
     });
-    setSessionForm({ title: '', type: 'interro', max_score: '10', date: new Date().toISOString().slice(0, 10) });
+    setSessionForm({ title: '', type: 'interrogation', max_score: '10', date: new Date().toISOString().slice(0, 10) });
     await loadSessions();
     if (res.data?.id) {
       setSelectedSessionId(res.data.id);
@@ -191,6 +238,83 @@ const GradesPage: React.FC = () => {
     await api.post(`/api/grades/evaluation-sessions/${selectedSessionId}/publish`);
     await loadSessions();
     alert('Session publiée.');
+  };
+
+  const handleCalculateAverages = async () => {
+    if (!selectedClass) return;
+    setFinalizeLoading('calculate');
+    setFinalizeMessage(null);
+    try {
+      await api.post(`/api/grades/classes/${selectedClass}/calculate`, {
+        term: bulletinTerm,
+        academic_year: academicYear,
+      });
+      setFinalizeMessage({ type: 'success', text: 'Moyennes calculées pour la classe.' });
+      await reloadBulletin();
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { message?: string; error?: string } } })?.response?.data?.message
+        || (err as { response?: { data?: { error?: string } } })?.response?.data?.error;
+      setFinalizeMessage({ type: 'error', text: msg || 'Calcul impossible.' });
+    } finally {
+      setFinalizeLoading(null);
+    }
+  };
+
+  const handleGenerateReportCards = async () => {
+    if (!selectedClass || !canManageReportCards) return;
+    if (!window.confirm('Générer les bulletins pour tous les élèves ayant des moyennes ?')) return;
+    setFinalizeLoading('generate');
+    setFinalizeMessage(null);
+    try {
+      const res = await api.post(`/api/grades/classes/${selectedClass}/report-cards`, {
+        term: bulletinTerm,
+        academic_year: academicYear,
+      });
+      const count = res.data?.generated_count ?? 0;
+      setFinalizeMessage({ type: 'success', text: `${count} bulletin(s) généré(s).` });
+      await reloadBulletin();
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error;
+      setFinalizeMessage({ type: 'error', text: msg || 'Génération impossible.' });
+    } finally {
+      setFinalizeLoading(null);
+    }
+  };
+
+  const handlePublishReportCards = async () => {
+    if (!selectedClass || !canManageReportCards) return;
+    if (!window.confirm('Publier les bulletins ? Ils seront visibles aux parents et sur les dossiers élèves.')) return;
+    setFinalizeLoading('publish');
+    setFinalizeMessage(null);
+    try {
+      const res = await api.post(`/api/grades/classes/${selectedClass}/report-cards/publish`, {
+        term: bulletinTerm,
+        academic_year: academicYear,
+      });
+      const count = res.data?.published_count ?? 0;
+      setFinalizeMessage({ type: 'success', text: `${count} bulletin(s) publié(s).` });
+      await reloadBulletin();
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error;
+      setFinalizeMessage({ type: 'error', text: msg || 'Publication impossible.' });
+    } finally {
+      setFinalizeLoading(null);
+    }
+  };
+
+  const handleDownloadBulletinPdf = async (studentId: number) => {
+    setPdfDownloadingId(studentId);
+    try {
+      await downloadReportCardPdf({
+        studentId,
+        term: bulletinTerm,
+        academicYear,
+      });
+    } catch {
+      alert('Impossible de télécharger le bulletin PDF.');
+    } finally {
+      setPdfDownloadingId(null);
+    }
   };
 
   const selectedSession = sessions.find((s) => s.id === selectedSessionId);
@@ -252,7 +376,7 @@ const GradesPage: React.FC = () => {
           <div className="session-create-form">
             <input placeholder="Titre (ex: Interro ch.3)" value={sessionForm.title} onChange={(e) => setSessionForm({ ...sessionForm, title: e.target.value })} />
             <select value={sessionForm.type} onChange={(e) => setSessionForm({ ...sessionForm, type: e.target.value })}>
-              {(assessmentTypes.length ? assessmentTypes : [{ code: 'interro', label: 'Interro' }, { code: 'devoir', label: 'Devoir' }, { code: 'examen', label: 'Examen' }]).map((t) => (
+              {(assessmentTypes.length ? assessmentTypes : [{ code: 'interrogation', label: 'Interrogation' }, { code: 'devoir', label: 'Devoir' }, { code: 'examen', label: 'Examen' }]).map((t) => (
                 <option key={t.code} value={t.code}>{t.label}</option>
               ))}
             </select>
@@ -340,10 +464,84 @@ const GradesPage: React.FC = () => {
               ))}
             </select>
           </div>
+
+          <section className="bulletin-finalize-panel">
+            <h3>Finaliser le trimestre</h3>
+            <ol className="bulletin-steps">
+              <li>
+                Publier toutes les sessions d&apos;évaluation
+                {unpublishedSessionsCount > 0 ? (
+                  <span className="bulletin-warn">
+                    {' '}— {unpublishedSessionsCount} session(s) non publiée(s).{' '}
+                    <button type="button" className="link-btn" onClick={() => setPageTab('sessions')}>Voir sessions</button>
+                  </span>
+                ) : (
+                  <span className="bulletin-ok"> — OK</span>
+                )}
+              </li>
+              <li>Calculer les moyennes de la classe</li>
+              <li>Générer les bulletins (titulaire ou admin)</li>
+              <li>Publier les bulletins (visible parents / dossiers élèves)</li>
+            </ol>
+            <div className="bulletin-finalize-actions">
+              <button
+                type="button"
+                className="btn btn-primary"
+                disabled={finalizeLoading !== null}
+                onClick={handleCalculateAverages}
+              >
+                {finalizeLoading === 'calculate' ? 'Calcul…' : 'Calculer les moyennes'}
+              </button>
+              <button
+                type="button"
+                className="btn btn-outline"
+                disabled={!canManageReportCards || finalizeLoading !== null}
+                title={!canManageReportCards ? 'Réservé au professeur titulaire ou à l\'administration' : undefined}
+                onClick={handleGenerateReportCards}
+              >
+                {finalizeLoading === 'generate' ? 'Génération…' : 'Générer les bulletins'}
+              </button>
+              <button
+                type="button"
+                className="btn btn-outline"
+                disabled={!canManageReportCards || finalizeLoading !== null}
+                title={!canManageReportCards ? 'Réservé au professeur titulaire ou à l\'administration' : undefined}
+                onClick={handlePublishReportCards}
+              >
+                {finalizeLoading === 'publish' ? 'Publication…' : 'Publier les bulletins'}
+              </button>
+            </div>
+            {!canManageReportCards && (
+              <p className="bulletin-hint">La génération et la publication des bulletins sont réservées au professeur titulaire ou à l&apos;administration.</p>
+            )}
+            {finalizeMessage && (
+              <p className={finalizeMessage.type === 'success' ? 'bulletin-msg-success' : 'bulletin-msg-error'}>
+                {finalizeMessage.text}
+              </p>
+            )}
+          </section>
+
+          {bulletinStats.count != null && bulletinStats.count > 0 && (
+            <p className="bulletin-stats">
+              Moyenne classe : <strong>{Number(bulletinStats.average).toFixed(2)}</strong>/20
+              {' · '}{bulletinStats.count} élève(s) classé(s)
+            </p>
+          )}
+
           {bulletinLoading ? <Skeleton className="skel-h-24" /> : (
             <div className="grades-table-card">
               <table>
-                <thead><tr><th>Rang</th><th>Élève</th><th className="center">Moyenne /20</th><th className="center">Position</th></tr></thead>
+                <thead>
+                  <tr>
+                    <th>Rang</th>
+                    <th>Élève</th>
+                    <th className="center">Moyenne /20</th>
+                    <th className="center">Position</th>
+                    <th>Décision</th>
+                    <th>Bulletin</th>
+                    <th>PDF</th>
+                  </tr>
+                </thead>
                 <tbody>
                   {bulletinRows.map((row) => (
                     <tr key={row.student.id}>
@@ -351,11 +549,37 @@ const GradesPage: React.FC = () => {
                       <td>{row.student.last_name} {row.student.first_name}</td>
                       <td className="center">{Number(row.general_average).toFixed(2)}</td>
                       <td className="center">{row.rank_display || '—'}</td>
+                      <td>{row.report_card?.decision_label || '—'}</td>
+                      <td>
+                        {!row.report_card ? '—' : row.report_card.is_published ? (
+                          <span className="badge-published">Publié</span>
+                        ) : (
+                          <span className="badge-draft">Brouillon</span>
+                        )}
+                      </td>
+                      <td>
+                        {row.report_card ? (
+                          <button
+                            type="button"
+                            className="btn btn-outline btn-sm btn-pdf"
+                            disabled={pdfDownloadingId === row.student.id}
+                            onClick={() => handleDownloadBulletinPdf(row.student.id)}
+                          >
+                            {pdfDownloadingId === row.student.id ? '…' : 'Télécharger'}
+                          </button>
+                        ) : (
+                          '—'
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
-              {!bulletinRows.length && <p className="tab-empty">Aucun résultat calculé.</p>}
+              {!bulletinRows.length && (
+                <p className="tab-empty">
+                  Aucun résultat calculé. Publiez vos sessions puis cliquez sur « Calculer les moyennes ».
+                </p>
+              )}
             </div>
           )}
         </>

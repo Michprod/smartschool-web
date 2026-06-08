@@ -1,10 +1,11 @@
 import axios from 'axios';
 
-/** URL absolue de l'API Laravel (dépôt séparé SmartSchool-full) */
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+/** En dev, requêtes relatives → proxy Vite (même origine, cookies Sanctum OK). */
+const API_URL = import.meta.env.DEV ? '' : (import.meta.env.VITE_API_URL || '');
 
 const api = axios.create({
   baseURL: API_URL,
+  timeout: 15000,
   withCredentials: true,
   withXSRFToken: true,
   headers: {
@@ -16,12 +17,7 @@ const api = axios.create({
 
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
-    if (error.response?.status === 401 && !window.location.pathname.startsWith('/login')) {
-      window.location.href = '/login';
-    }
-    return Promise.reject(error);
-  }
+  (error) => Promise.reject(error)
 );
 
 export async function initCsrf(): Promise<void> {

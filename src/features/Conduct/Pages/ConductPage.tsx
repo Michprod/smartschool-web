@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import api from '@/core/api/client';
+import { fetchSchoolYear } from '@/core/utils/schoolYear';
 import Skeleton from '@/core/Components/Skeleton';
 import './ConductPage.css';
 
@@ -13,21 +14,25 @@ const ConductPage: React.FC = () => {
   const [classes, setClasses] = useState<Array<{ id: number; name: string }>>([]);
   const [selectedClass, setSelectedClass] = useState('');
   const [term, setTerm] = useState('T1');
-  const [academicYear] = useState(`${new Date().getFullYear()}-${new Date().getFullYear() + 1}`);
+  const [academicYear, setAcademicYear] = useState('2025-2026');
   const [rows, setRows] = useState<ConductRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    api.get('/api/grades/my-classes').then((res) => {
-      const list = (res.data || []).map((item: any) => ({
+    const load = async () => {
+      const year = await fetchSchoolYear();
+      setAcademicYear(year);
+      const res = await api.get('/api/grades/my-classes', { params: { academic_year: year } });
+      const list = (res.data || []).map((item: { class: { id: number; display_name?: string; name: string } }) => ({
         id: item.class.id,
         name: item.class.display_name || item.class.name,
       }));
       setClasses(list);
       if (list.length) setSelectedClass(String(list[0].id));
       setLoading(false);
-    });
+    };
+    load();
   }, []);
 
   useEffect(() => {
@@ -63,6 +68,22 @@ const ConductPage: React.FC = () => {
   };
 
   if (loading) return <Skeleton className="skel-h-24" />;
+
+  if (classes.length === 0) {
+    return (
+      <div className="conduct-page">
+        <header className="page-hero">
+          <div>
+            <h1>Conduite des élèves</h1>
+            <p>Appréciation de conduite par période (titulaire de classe).</p>
+          </div>
+        </header>
+        <p className="empty-msg">
+          Aucune classe assignée pour l&apos;année {academicYear}. Contactez l&apos;administration (secrétariat ou direction).
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="conduct-page">

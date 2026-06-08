@@ -1,9 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import api from '@/core/api/client';
 import { extractList } from '@/core/api/extractData';
+import { useAuth } from '@/core/auth/AuthProvider';
 import Can from '@/core/Components/Can';
 import Skeleton from '@/core/Components/Skeleton';
 import Pagination from '@/core/Components/Pagination';
+import { fetchSchoolYear } from '@/core/utils/schoolYear';
 import ClassForm from '../Components/ClassForm';
 import ClassSubjectsPanel from '../Components/ClassSubjectsPanel';
 import type { ClassFormData, EducationCycle, SchoolClassItem } from '../types';
@@ -27,6 +29,8 @@ const mapClass = (c: Record<string, unknown>): SchoolClassItem => ({
 });
 
 const ClassManagement: React.FC = () => {
+  const { user } = useAuth();
+  const isTeacherView = user?.role === 'teacher';
   const [classes, setClasses] = useState<SchoolClassItem[]>([]);
   const [cycles, setCycles] = useState<EducationCycle[]>([]);
   const [loading, setLoading] = useState(true);
@@ -42,12 +46,15 @@ const ClassManagement: React.FC = () => {
   const loadData = async () => {
     setLoading(true);
     try {
+      const year = await fetchSchoolYear();
+      const params: Record<string, string | number> = { per_page: 200, academic_year: year };
       const [classesRes, catalogRes] = await Promise.all([
-        api.get('/api/classes', { params: { per_page: 200 } }),
+        api.get('/api/classes', { params }),
         api.get('/api/classes/catalog'),
       ]);
       setClasses(extractList<Record<string, unknown>>(classesRes).map(mapClass));
       setCycles(catalogRes.data?.cycles || []);
+      if (isTeacherView) setFilterYear(year);
     } catch (e) {
       console.error('Erreur chargement classes:', e);
     } finally {
@@ -160,15 +167,21 @@ const ClassManagement: React.FC = () => {
     <div className="class-management">
       <header className="page-hero">
         <div>
-          <h1>Gestion des classes</h1>
-          <p>Salles et groupes selon le système scolaire RDC (cycles, niveaux, options Humanités)</p>
+          <h1>{isTeacherView ? 'Mes classes' : 'Gestion des classes'}</h1>
+          <p>
+            {isTeacherView
+              ? 'Classes où vous enseignez ou dont vous êtes titulaire — consultation des effectifs.'
+              : 'Salles et groupes selon le système scolaire RDC (cycles, niveaux, options Humanités)'}
+          </p>
         </div>
-        <Can permission="classes:write">
-          <button type="button" className="btn btn-primary" onClick={() => { setEditing(undefined); setShowForm(true); }}>
-            <span className="material-symbols-outlined">add</span>
-            Nouvelle classe
-          </button>
-        </Can>
+        {!isTeacherView && (
+          <Can permission="classes:write">
+            <button type="button" className="btn btn-primary" onClick={() => { setEditing(undefined); setShowForm(true); }}>
+              <span className="material-symbols-outlined">add</span>
+              Nouvelle classe
+            </button>
+          </Can>
+        )}
       </header>
 
       <div className="filters-bar">
@@ -209,7 +222,7 @@ const ClassManagement: React.FC = () => {
                   <th>Année</th>
                   <th>Effectif</th>
                   <th>Capacité</th>
-                  <th>Titulaire</th>
+                  {isTeacherView ? <th>Mon rôle</th> : <th>Titulaire</th>}
                   <th className="actions-cell">Actions</th>
                 </tr>
               </thead>
@@ -221,11 +234,23 @@ const ClassManagement: React.FC = () => {
                     <td>{c.academic_year}</td>
                     <td>{c.students_count ?? 0}</td>
                     <td>{c.capacity}</td>
-                    <td>{c.teacher ? `${c.teacher.first_name} ${c.teacher.last_name}` : '—'}</td>
+                    <td>
+                      {isTeacherView ? (
+                        <>
+                          {c.teacher_id === user?.id && <span className="role-badge">Titulaire</span>}
+                          {c.teacher_id !== user?.id && <span className="role-badge role-badge--matiere">Matière</span>}
+                        </>
+                      ) : (
+                        c.teacher ? `${c.teacher.first_name} ${c.teacher.last_name}` : '—'
+                      )}
+                    </td>
                     <td className="actions-cell">
-                      <button type="button" className="btn-icon" onClick={() => setSubjectsClass(c)} title="Matières & profs">
-                        <span className="material-symbols-outlined">menu_book</span>
-                      </button>
+                      {!isTeacherView && (
+                        <button type="button" className="btn-icon" onClick={() => setSubjectsClass(c)} title="Matières & profs">
+                          <span className="material-symbols-outlined">menu_book</span>
+                        </button>
+                      )}
+                      {!isTeacherView && (
                       <Can permission="classes:write">
                         <button type="button" className="btn-icon" onClick={() => handleEdit(c)} title="Modifier">
                           <span className="material-symbols-outlined">edit</span>
@@ -234,13 +259,18 @@ const ClassManagement: React.FC = () => {
                           <span className="material-symbols-outlined">delete</span>
                         </button>
                       </Can>
+                      )}
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
             {paginated.length === 0 && (
-              <p className="empty-msg">Aucune classe. Créez une salle pour commencer.</p>
+              <p className="empty-msg">
+                {isTeacherView
+                  ? 'Aucune classe assignée pour cette année — contactez l\'administration.'
+                  : 'Aucune classe. Créez une salle pour commencer.'}
+              </p>
             )}
           </div>
           <Pagination
